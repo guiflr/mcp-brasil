@@ -16,11 +16,11 @@ Endpoints:
     - /senador/{codigo}/votacoes        → votacoes_senador
     - /materia/pesquisa/lista           → buscar_materias
     - /materia/{codigo}                 → obter_materia
-    - /materia/{codigo}/tramitacoes     → tramitacao_materia
-    - /materia/{codigo}/textos          → textos_materia
-    - /materia/{codigo}/votacoes        → votos_materia
-    - /plenario/lista/votacao/{ano}     → listar_votacoes
-    - /plenario/lista/votacao/{data}    → votacoes_recentes
+    - /materia/movimentacoes/{codigo}   → tramitacao_materia
+    - /materia/textos/{codigo}          → textos_materia
+    - /materia/votacoes/{codigo}        → votos_materia
+    - /votacao?ano={ano}                → listar_votacoes
+    - /votacao?ano={ano} (filtered)     → votacoes_recentes
     - /comissao/lista/colegiados        → listar_comissoes
     - /comissao/{codigo}                → obter_comissao
     - /comissao/{codigo}/membros        → membros_comissao
@@ -47,7 +47,6 @@ from .constants import (
     LEGISLATURA_URL,
     MATERIA_URL,
     MATERIAS_URL,
-    SENADO_API_BASE,
     SENADORES_LISTA_URL,
     SENADORES_URL,
     TIPOS_MATERIA,
@@ -186,27 +185,61 @@ def _parse_tramitacao(raw: dict[str, Any]) -> Tramitacao:
     )
 
 
+def _str(val: Any) -> str | None:
+    """Convert to str if not None (new API returns int codes)."""
+    return str(val) if val is not None else None
+
+
 def _parse_votacao_resumo(raw: dict[str, Any]) -> VotacaoResumo:
+    # Handles both old PascalCase and new camelCase API formats
     return VotacaoResumo(
-        codigo=raw.get("CodigoSessaoVotacao") or raw.get("CodigoVotacao"),
-        data=raw.get("DataSessao") or raw.get("DataVotacao"),
-        descricao=raw.get("DescricaoVotacao") or raw.get("Descricao"),
-        resultado=raw.get("Resultado"),
+        codigo=_str(
+            raw.get("codigoSessaoVotacao")
+            or raw.get("CodigoSessaoVotacao")
+            or raw.get("CodigoVotacao")
+        ),
+        data=raw.get("dataSessao") or raw.get("DataSessao") or raw.get("DataVotacao"),
+        descricao=(
+            raw.get("descricaoVotacao") or raw.get("DescricaoVotacao") or raw.get("Descricao")
+        ),
+        resultado=raw.get("resultadoVotacao") or raw.get("Resultado"),
     )
 
 
 def _parse_votacao_detalhe(raw: dict[str, Any]) -> VotacaoDetalhe:
+    # Old API (PascalCase, deeply nested) — /materia/votacoes/{id}
     materia = raw.get("Materia") or raw.get("IdentificacaoMateria") or {}
+    sessao = raw.get("SessaoPlenaria") or {}
+    votos_raw = _ensure_list(_deep_get(raw, "Votos", "VotoParlamentar"))
+    # New API (camelCase, flat) — /votacao
+    sim = _safe_int(raw.get("totalVotosSim") or raw.get("TotalVotosSim"))
+    nao = _safe_int(raw.get("totalVotosNao") or raw.get("TotalVotosNao"))
+    abstencao = _safe_int(raw.get("totalVotosAbstencao") or raw.get("TotalVotosAbstencao"))
+    if sim is None and votos_raw:
+        sim = sum(1 for v in votos_raw if v.get("SiglaVoto") == "Sim")
+        nao = sum(1 for v in votos_raw if v.get("SiglaVoto") == "Não")
+        abstencao = sum(1 for v in votos_raw if v.get("SiglaVoto") == "Abstenção")
     return VotacaoDetalhe(
-        codigo=raw.get("CodigoSessaoVotacao") or raw.get("CodigoVotacao"),
-        data=raw.get("DataSessao") or raw.get("DataVotacao"),
-        descricao=raw.get("DescricaoVotacao"),
-        resultado=raw.get("Resultado"),
-        materia_codigo=materia.get("CodigoMateria"),
-        materia_descricao=materia.get("DescricaoIdentificacaoMateria"),
-        sim=_safe_int(raw.get("TotalVotosSim")),
-        nao=_safe_int(raw.get("TotalVotosNao")),
-        abstencao=_safe_int(raw.get("TotalVotosAbstencao")),
+        codigo=_str(
+            raw.get("codigoSessaoVotacao")
+            or raw.get("CodigoSessaoVotacao")
+            or raw.get("CodigoVotacao")
+        ),
+        data=(
+            raw.get("dataSessao")
+            or sessao.get("DataSessao")
+            or raw.get("DataSessao")
+            or raw.get("DataVotacao")
+        ),
+        descricao=raw.get("descricaoVotacao") or raw.get("DescricaoVotacao"),
+        resultado=(
+            raw.get("resultadoVotacao") or raw.get("DescricaoResultado") or raw.get("Resultado")
+        ),
+        materia_codigo=_str(raw.get("codigoMateria") or materia.get("CodigoMateria")),
+        materia_descricao=raw.get("identificacao") or materia.get("DescricaoIdentificacaoMateria"),
+        sim=sim,
+        nao=nao,
+        abstencao=abstencao,
     )
 
 
@@ -221,13 +254,14 @@ def _safe_int(val: Any) -> int | None:
 
 
 def _parse_voto(raw: dict[str, Any]) -> VotoNominal:
+    # Old API (PascalCase, nested IdentificacaoParlamentar)
     ident = raw.get("IdentificacaoParlamentar") or {}
     return VotoNominal(
-        senador_codigo=ident.get("CodigoParlamentar"),
-        senador_nome=ident.get("NomeParlamentar"),
-        partido=ident.get("SiglaPartidoParlamentar"),
-        uf=ident.get("UfParlamentar"),
-        voto=raw.get("SiglaVoto") or raw.get("DescricaoVoto"),
+        senador_codigo=_str(raw.get("codigoParlamentar") or ident.get("CodigoParlamentar")),
+        senador_nome=raw.get("nomeParlamentar") or ident.get("NomeParlamentar"),
+        partido=raw.get("siglaPartidoParlamentar") or ident.get("SiglaPartidoParlamentar"),
+        uf=raw.get("siglaUFParlamentar") or ident.get("UfParlamentar"),
+        voto=(raw.get("siglaVotoParlamentar") or raw.get("SiglaVoto") or raw.get("DescricaoVoto")),
     )
 
 
@@ -406,25 +440,34 @@ async def votos_materia(codigo: str) -> list[VotacaoDetalhe]:
 
 async def listar_votacoes(ano: str) -> list[VotacaoResumo]:
     """Lista votações do plenário em um ano."""
-    data = await _get(f"{VOTACOES_URL}/{ano}")
-    votacoes = _deep_get(data, "ListaVotacoes", "Votacoes", "Votacao")
-    return [_parse_votacao_resumo(v) for v in _ensure_list(votacoes)]
+    data = await _get(VOTACOES_URL, params={"ano": ano})
+    items = _ensure_list(data)
+    return [_parse_votacao_resumo(v) for v in items]
 
 
 async def obter_votacao(codigo_sessao: str) -> VotacaoDetalhe | None:
     """Obtém detalhes de uma votação incluindo votos."""
-    data = await _get(f"{SENADO_API_BASE}/plenario/votacao/{codigo_sessao}")
-    votacao = _deep_get(data, "VotacaoParlamentar", "Votacao")
-    if not votacao:
+    # New API has no individual detail endpoint; filter from list
+    data = await _get(VOTACOES_URL, params={"codigoSessaoVotacao": codigo_sessao})
+    items = _ensure_list(data)
+    if not items:
         return None
-    return _parse_votacao_detalhe(votacao)
+    return _parse_votacao_detalhe(items[0])
 
 
 async def votacoes_recentes(data_str: str) -> list[VotacaoResumo]:
-    """Lista votações por data (formato AAAAMMDD)."""
-    data = await _get(f"{VOTACOES_URL}/{data_str}")
-    votacoes = _deep_get(data, "ListaVotacoes", "Votacoes", "Votacao")
-    return [_parse_votacao_resumo(v) for v in _ensure_list(votacoes)]
+    """Lista votações por data (formato AAAAMMDD ou AAAA-MM-DD)."""
+    ano = data_str[:4]
+    data = await _get(VOTACOES_URL, params={"ano": ano})
+    items = _ensure_list(data)
+    # Filter by date prefix client-side
+    results = []
+    normalized = data_str.replace("-", "")
+    for item in items:
+        ds = (item.get("dataSessao") or "").replace("-", "").replace("T", "")[:8]
+        if ds.startswith(normalized):
+            results.append(_parse_votacao_resumo(item))
+    return results
 
 
 # Comissões (4)

@@ -14,8 +14,8 @@ SENADORES_URL = f"{SENADO_API_BASE}/senador"
 MATERIAS_URL = f"{SENADO_API_BASE}/materia/pesquisa/lista"
 MATERIA_URL = f"{SENADO_API_BASE}/materia"
 
-# Endpoints — Votações
-VOTACOES_URL = f"{SENADO_API_BASE}/plenario/lista/votacao"
+# Endpoints — Votações (new API, replaces deprecated /plenario/lista/votacao)
+VOTACOES_URL = f"{SENADO_API_BASE}/votacao"
 
 # Endpoints — Comissões
 COMISSOES_URL = f"{SENADO_API_BASE}/comissao/lista/colegiados"

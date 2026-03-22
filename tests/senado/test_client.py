@@ -389,28 +389,22 @@ class TestListarVotacoes:
     @pytest.mark.asyncio
     @respx.mock
     async def test_returns_votacoes(self) -> None:
-        respx.get(f"{VOTACOES_URL}/2024").mock(
+        respx.get(VOTACOES_URL, params={"ano": "2024"}).mock(
             return_value=httpx.Response(
                 200,
-                json={
-                    "ListaVotacoes": {
-                        "Votacoes": {
-                            "Votacao": [
-                                {
-                                    "CodigoSessaoVotacao": "VOT-002",
-                                    "DataSessao": "2024-03-15",
-                                    "DescricaoVotacao": "PEC da reforma",
-                                    "Resultado": "Aprovada",
-                                }
-                            ]
-                        }
+                json=[
+                    {
+                        "codigoSessaoVotacao": 6900,
+                        "dataSessao": "2024-03-15T00:00:00",
+                        "descricaoVotacao": "PEC da reforma",
+                        "resultadoVotacao": "A",
                     }
-                },
+                ],
             )
         )
         result = await client.listar_votacoes("2024")
         assert len(result) == 1
-        assert result[0].codigo == "VOT-002"
+        assert result[0].codigo == "6900"
 
 
 # ---------------------------------------------------------------------------

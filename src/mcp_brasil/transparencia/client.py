@@ -31,27 +31,47 @@ from mcp_brasil._shared.rate_limiter import RateLimiter
 from mcp_brasil.exceptions import AuthError
 
 from .constants import (
+    ACORDOS_LENIENCIA_URL,
     AUTH_ENV_VAR,
     AUTH_HEADER_NAME,
+    BENEFICIOS_CIDADAO_URL,
     BOLSA_FAMILIA_MUNICIPIO_URL,
     BOLSA_FAMILIA_NIS_URL,
+    CARTOES_URL,
+    CONTRATO_DETALHE_URL,
     CONTRATOS_URL,
+    CONVENIOS_URL,
     DESPESAS_URL,
     EMENDAS_URL,
     LICITACOES_URL,
+    NOTAS_FISCAIS_URL,
+    PEP_URL,
+    PESSOAS_FISICAS_URL,
+    PESSOAS_JURIDICAS_URL,
     SANCOES_DATABASES,
+    SERVIDOR_DETALHE_URL,
     SERVIDORES_URL,
     VIAGENS_URL,
 )
 from .schemas import (
+    AcordoLeniencia,
+    BeneficioSocial,
     BolsaFamiliaMunicipio,
     BolsaFamiliaSacado,
+    CartaoPagamento,
+    ContratoDetalhe,
     ContratoFornecedor,
+    Convenio,
     Emenda,
     Licitacao,
+    NotaFiscal,
+    PessoaExpostaPoliticamente,
+    PessoaFisicaVinculos,
+    PessoaJuridicaVinculos,
     RecursoRecebido,
     Sancao,
     Servidor,
+    ServidorDetalhe,
     Viagem,
 )
 
@@ -445,3 +465,366 @@ async def consultar_viagens(cpf: str, pagina: int = 1) -> list[Viagem]:
     params: dict[str, Any] = {"cpf": _clean_cpf_cnpj(cpf), "pagina": pagina}
     data = await _get(VIAGENS_URL, params)
     return _safe_parse_list(data, _parse_viagem, "viagens")
+
+
+# --- Parsing helpers (new endpoints) ----------------------------------------
+
+
+def _parse_convenio(raw: dict[str, Any]) -> Convenio:
+    """Parse a raw agreement/covenant JSON."""
+    orgao = raw.get("orgaoConcedente") or raw.get("orgao") or {}
+    convenente = raw.get("convenente") or {}
+    return Convenio(
+        numero=raw.get("numero"),
+        objeto=raw.get("objeto"),
+        situacao=raw.get("situacao"),
+        valor_convenio=raw.get("valorConvenio") or raw.get("valor"),
+        valor_liberado=raw.get("valorLiberado"),
+        orgao=orgao.get("nome") if isinstance(orgao, dict) else str(orgao) if orgao else None,
+        convenente=convenente.get("nome")
+        if isinstance(convenente, dict)
+        else str(convenente)
+        if convenente
+        else None,
+        data_inicio=raw.get("dataInicioVigencia"),
+        data_fim=raw.get("dataFimVigencia"),
+    )
+
+
+def _parse_cartao(raw: dict[str, Any]) -> CartaoPagamento:
+    """Parse a raw government credit card payment JSON."""
+    return CartaoPagamento(
+        portador=raw.get("portador") or raw.get("nomePortador"),
+        cpf=raw.get("cpfPortador") or raw.get("cpf"),
+        orgao=raw.get("nomeOrgao") or raw.get("orgao"),
+        valor=raw.get("valorTransacao") or raw.get("valor"),
+        data=raw.get("dataTransacao") or raw.get("data"),
+        tipo=raw.get("tipoCartao") or raw.get("tipo"),
+        estabelecimento=raw.get("nomeEstabelecimento") or raw.get("estabelecimento"),
+    )
+
+
+def _parse_pep(raw: dict[str, Any]) -> PessoaExpostaPoliticamente:
+    """Parse a Politically Exposed Person record."""
+    orgao = raw.get("orgao") or {}
+    return PessoaExpostaPoliticamente(
+        cpf=raw.get("cpf"),
+        nome=raw.get("nome"),
+        orgao=orgao.get("nome") if isinstance(orgao, dict) else str(orgao) if orgao else None,
+        funcao=raw.get("funcao") or raw.get("descricaoFuncao"),
+        data_inicio=raw.get("dataInicioExercicio") or raw.get("dataInicio"),
+        data_fim=raw.get("dataFimExercicio") or raw.get("dataFim"),
+    )
+
+
+def _parse_acordo_leniencia(raw: dict[str, Any]) -> AcordoLeniencia:
+    """Parse a leniency agreement record."""
+    empresa = raw.get("pessoa") or raw.get("empresa") or {}
+    orgao = raw.get("orgaoResponsavel") or raw.get("orgao") or {}
+    return AcordoLeniencia(
+        empresa=empresa.get("nome") or empresa.get("razaoSocial")
+        if isinstance(empresa, dict)
+        else str(empresa)
+        if empresa
+        else None,
+        cnpj=empresa.get("cnpj") or empresa.get("codigoFormatado")
+        if isinstance(empresa, dict)
+        else None,
+        orgao=orgao.get("nome") if isinstance(orgao, dict) else str(orgao) if orgao else None,
+        situacao=raw.get("situacao"),
+        data_inicio=raw.get("dataInicioAcordo") or raw.get("dataInicio"),
+        data_fim=raw.get("dataFimAcordo") or raw.get("dataFim"),
+        valor=raw.get("valorMulta") or raw.get("valor"),
+    )
+
+
+def _parse_nota_fiscal(raw: dict[str, Any]) -> NotaFiscal:
+    """Parse an electronic invoice record."""
+    emitente = raw.get("emitente") or {}
+    return NotaFiscal(
+        numero=raw.get("numero"),
+        serie=raw.get("serie"),
+        emitente=emitente.get("nome") or emitente.get("razaoSocial")
+        if isinstance(emitente, dict)
+        else str(emitente)
+        if emitente
+        else None,
+        cnpj_emitente=emitente.get("cnpj") if isinstance(emitente, dict) else None,
+        valor=raw.get("valor") or raw.get("valorTotal"),
+        data_emissao=raw.get("dataEmissao"),
+    )
+
+
+def _parse_beneficio_social(raw: dict[str, Any]) -> BeneficioSocial:
+    """Parse a social benefit record."""
+    municipio_raw = raw.get("municipio")
+    municipio = municipio_raw if isinstance(municipio_raw, dict) else {}
+    return BeneficioSocial(
+        tipo=raw.get("tipoBeneficio") or raw.get("tipo"),
+        nome_beneficiario=raw.get("nomeBeneficiario") or raw.get("nome"),
+        cpf=raw.get("cpf"),
+        nis=raw.get("nis"),
+        valor=raw.get("valor"),
+        mes_referencia=raw.get("mesReferencia") or raw.get("dataReferencia"),
+        municipio=municipio.get("nomeIBGE")
+        if isinstance(municipio, dict)
+        else str(municipio_raw)
+        if municipio_raw
+        else None,
+        uf=municipio.get("uf", {}).get("sigla")
+        if isinstance(municipio, dict) and isinstance(municipio.get("uf"), dict)
+        else None,
+    )
+
+
+def _parse_pessoa_fisica(raw: dict[str, Any]) -> PessoaFisicaVinculos:
+    """Parse physical person linkage record."""
+    return PessoaFisicaVinculos(
+        cpf=raw.get("cpf"),
+        nome=raw.get("nome"),
+        tipo_vinculo=raw.get("tipoVinculo") or raw.get("tipo"),
+        orgao=raw.get("orgao") or raw.get("nomeOrgao"),
+        beneficios=raw.get("beneficios"),
+    )
+
+
+def _parse_pessoa_juridica(raw: dict[str, Any]) -> PessoaJuridicaVinculos:
+    """Parse juridical person linkage record."""
+    return PessoaJuridicaVinculos(
+        cnpj=raw.get("cnpj"),
+        razao_social=raw.get("razaoSocial") or raw.get("nome"),
+        sancoes=raw.get("sancoes"),
+        contratos=raw.get("contratos"),
+    )
+
+
+def _parse_contrato_detalhe(raw: dict[str, Any]) -> ContratoDetalhe:
+    """Parse a detailed contract record."""
+    fornecedor = raw.get("fornecedor") or {}
+    orgao = raw.get("unidadeGestora") or raw.get("orgaoVinculado") or {}
+    return ContratoDetalhe(
+        id=raw.get("id"),
+        numero=raw.get("numero"),
+        objeto=raw.get("objeto"),
+        valor_inicial=raw.get("valorInicial"),
+        valor_final=raw.get("valorFinal"),
+        data_inicio=raw.get("dataInicioVigencia"),
+        data_fim=raw.get("dataFimVigencia"),
+        orgao=orgao.get("nome") or orgao.get("descricao"),
+        fornecedor=fornecedor.get("nome") or fornecedor.get("razaoSocialReceita"),
+        modalidade=raw.get("modalidadeCompra") or raw.get("modalidade"),
+        situacao=raw.get("situacao"),
+        licitacao=raw.get("licitacao") or raw.get("numeroLicitacao"),
+    )
+
+
+def _parse_servidor_detalhe(raw: dict[str, Any]) -> ServidorDetalhe:
+    """Parse a detailed public servant record with compensation."""
+    orgao = raw.get("orgaoServidorExercicio") or raw.get("orgaoServidorLotacao") or {}
+    return ServidorDetalhe(
+        id=raw.get("id"),
+        cpf=raw.get("cpf"),
+        nome=raw.get("nome"),
+        tipo_servidor=raw.get("tipoServidor"),
+        situacao=raw.get("situacao"),
+        orgao=orgao.get("nome") or orgao.get("descricao"),
+        cargo=raw.get("cargo"),
+        funcao=raw.get("funcao"),
+        remuneracao_basica=raw.get("remuneracaoBasicaBruta"),
+        remuneracao_apos_deducoes=raw.get("remuneracaoAposDeducoesObrigatorias"),
+    )
+
+
+# --- Public API functions (new endpoints) -----------------------------------
+
+
+async def buscar_convenios(
+    orgao: str | None = None,
+    convenente: str | None = None,
+    pagina: int = 1,
+) -> list[Convenio]:
+    """Busca convênios e transferências voluntárias.
+
+    Args:
+        orgao: Código do órgão concedente.
+        convenente: Nome ou CNPJ do convenente.
+        pagina: Número da página.
+    """
+    params: dict[str, Any] = {"pagina": pagina}
+    if orgao:
+        params["codigoOrgao"] = orgao
+    if convenente:
+        params["convenente"] = convenente
+    data = await _get(CONVENIOS_URL, params)
+    return _safe_parse_list(data, _parse_convenio, "convenios")
+
+
+async def buscar_cartoes_pagamento(
+    cpf_portador: str | None = None,
+    codigo_orgao: str | None = None,
+    mes_ano_inicio: str | None = None,
+    mes_ano_fim: str | None = None,
+    pagina: int = 1,
+) -> list[CartaoPagamento]:
+    """Busca pagamentos com cartão corporativo/suprimento de fundos.
+
+    Args:
+        cpf_portador: CPF do portador do cartão.
+        codigo_orgao: Código do órgão.
+        mes_ano_inicio: Mês/ano de início no formato MM/AAAA.
+        mes_ano_fim: Mês/ano de fim no formato MM/AAAA.
+        pagina: Número da página.
+    """
+    params: dict[str, Any] = {"pagina": pagina}
+    if cpf_portador:
+        params["cpfPortador"] = _clean_cpf_cnpj(cpf_portador)
+    if codigo_orgao:
+        params["codigoOrgao"] = codigo_orgao
+    if mes_ano_inicio:
+        params["mesExtratoInicio"] = mes_ano_inicio
+    if mes_ano_fim:
+        params["mesExtratoFim"] = mes_ano_fim
+    data = await _get(CARTOES_URL, params)
+    return _safe_parse_list(data, _parse_cartao, "cartoes")
+
+
+async def buscar_pep(
+    cpf: str | None = None,
+    nome: str | None = None,
+    pagina: int = 1,
+) -> list[PessoaExpostaPoliticamente]:
+    """Busca Pessoas Expostas Politicamente (PEP).
+
+    Args:
+        cpf: CPF da pessoa.
+        nome: Nome da pessoa.
+        pagina: Número da página.
+    """
+    params: dict[str, Any] = {"pagina": pagina}
+    if cpf:
+        params["cpf"] = _clean_cpf_cnpj(cpf)
+    elif nome:
+        params["nome"] = nome
+    data = await _get(PEP_URL, params)
+    return _safe_parse_list(data, _parse_pep, "pep")
+
+
+async def buscar_acordos_leniencia(
+    nome_empresa: str | None = None,
+    cnpj: str | None = None,
+    pagina: int = 1,
+) -> list[AcordoLeniencia]:
+    """Busca acordos de leniência (anticorrupção).
+
+    Args:
+        nome_empresa: Nome da empresa.
+        cnpj: CNPJ da empresa.
+        pagina: Número da página.
+    """
+    params: dict[str, Any] = {"pagina": pagina}
+    if nome_empresa:
+        params["nomeEmpresa"] = nome_empresa
+    if cnpj:
+        params["cnpj"] = _clean_cpf_cnpj(cnpj)
+    data = await _get(ACORDOS_LENIENCIA_URL, params)
+    return _safe_parse_list(data, _parse_acordo_leniencia, "acordos-leniencia")
+
+
+async def buscar_notas_fiscais(
+    cnpj_emitente: str | None = None,
+    data_emissao_de: str | None = None,
+    data_emissao_ate: str | None = None,
+    pagina: int = 1,
+) -> list[NotaFiscal]:
+    """Busca notas fiscais eletrônicas.
+
+    Args:
+        cnpj_emitente: CNPJ do emitente da nota.
+        data_emissao_de: Data de emissão inicial DD/MM/AAAA.
+        data_emissao_ate: Data de emissão final DD/MM/AAAA.
+        pagina: Número da página.
+    """
+    params: dict[str, Any] = {"pagina": pagina}
+    if cnpj_emitente:
+        params["cnpjEmitente"] = _clean_cpf_cnpj(cnpj_emitente)
+    if data_emissao_de:
+        params["dataEmissaoDe"] = data_emissao_de
+    if data_emissao_ate:
+        params["dataEmissaoAte"] = data_emissao_ate
+    data = await _get(NOTAS_FISCAIS_URL, params)
+    return _safe_parse_list(data, _parse_nota_fiscal, "notas-fiscais")
+
+
+async def consultar_beneficio_social(
+    cpf: str | None = None,
+    nis: str | None = None,
+    mes_ano: str | None = None,
+    pagina: int = 1,
+) -> list[BeneficioSocial]:
+    """Consulta benefícios sociais (BPC, seguro-desemprego, etc.) por CPF/NIS.
+
+    Args:
+        cpf: CPF do beneficiário.
+        nis: NIS do beneficiário.
+        mes_ano: Mês/ano de referência no formato AAAAMM.
+        pagina: Número da página.
+    """
+    params: dict[str, Any] = {"pagina": pagina}
+    if cpf:
+        params["cpf"] = _clean_cpf_cnpj(cpf)
+    if nis:
+        params["nis"] = nis
+    if mes_ano:
+        params["mesAno"] = mes_ano
+    data = await _get(BENEFICIOS_CIDADAO_URL, params)
+    return _safe_parse_list(data, _parse_beneficio_social, "beneficios-cidadao")
+
+
+async def consultar_cpf(cpf: str, pagina: int = 1) -> list[PessoaFisicaVinculos]:
+    """Consulta vínculos e benefícios por CPF.
+
+    Args:
+        cpf: CPF da pessoa física.
+        pagina: Número da página.
+    """
+    params: dict[str, Any] = {"cpf": _clean_cpf_cnpj(cpf), "pagina": pagina}
+    data = await _get(PESSOAS_FISICAS_URL, params)
+    return _safe_parse_list(data, _parse_pessoa_fisica, "pessoas-fisicas")
+
+
+async def consultar_cnpj(cnpj: str, pagina: int = 1) -> list[PessoaJuridicaVinculos]:
+    """Consulta sanções e contratos por CNPJ.
+
+    Args:
+        cnpj: CNPJ da pessoa jurídica.
+        pagina: Número da página.
+    """
+    params: dict[str, Any] = {"cnpj": _clean_cpf_cnpj(cnpj), "pagina": pagina}
+    data = await _get(PESSOAS_JURIDICAS_URL, params)
+    return _safe_parse_list(data, _parse_pessoa_juridica, "pessoas-juridicas")
+
+
+async def detalhar_contrato(id_contrato: int) -> ContratoDetalhe | None:
+    """Busca detalhe de um contrato específico por ID.
+
+    Args:
+        id_contrato: ID do contrato no Portal da Transparência.
+    """
+    url = f"{CONTRATO_DETALHE_URL}/{id_contrato}"
+    data = await _get(url)
+    if isinstance(data, dict):
+        return _parse_contrato_detalhe(data)
+    return None
+
+
+async def detalhar_servidor(id_servidor: int) -> ServidorDetalhe | None:
+    """Busca detalhe completo de um servidor com remuneração.
+
+    Args:
+        id_servidor: ID do servidor no Portal da Transparência.
+    """
+    url = f"{SERVIDOR_DETALHE_URL}/{id_servidor}"
+    data = await _get(url)
+    if isinstance(data, dict):
+        return _parse_servidor_detalhe(data)
+    return None

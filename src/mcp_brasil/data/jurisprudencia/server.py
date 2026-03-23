@@ -19,12 +19,12 @@ from .tools import (
 mcp = FastMCP("mcp-brasil-jurisprudencia")
 
 # Tools (6)
-mcp.tool(buscar_jurisprudencia_stf)
-mcp.tool(buscar_jurisprudencia_stj)
-mcp.tool(buscar_jurisprudencia_tst)
-mcp.tool(buscar_sumulas)
-mcp.tool(buscar_repercussao_geral)
-mcp.tool(buscar_informativos)
+mcp.tool(buscar_jurisprudencia_stf, tags={"busca", "jurisprudencia", "stf"})
+mcp.tool(buscar_jurisprudencia_stj, tags={"busca", "jurisprudencia", "stj"})
+mcp.tool(buscar_jurisprudencia_tst, tags={"busca", "jurisprudencia", "tst", "trabalhista"})
+mcp.tool(buscar_sumulas, tags={"busca", "sumulas", "stf"})
+mcp.tool(buscar_repercussao_geral, tags={"busca", "repercussao-geral", "stf"})
+mcp.tool(buscar_informativos, tags={"busca", "informativos", "jurisprudencia"})
 
 # Resources
 mcp.resource("data://tribunais-superiores", mime_type="application/json")(tribunais_superiores)

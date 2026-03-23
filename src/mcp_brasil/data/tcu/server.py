@@ -21,14 +21,14 @@ from .tools import (
 mcp = FastMCP("mcp-brasil-tcu")
 
 # Tools
-mcp.tool(buscar_acordaos)
-mcp.tool(consultar_inabilitados)
-mcp.tool(consultar_inidoneos)
-mcp.tool(consultar_certidoes_apf)
-mcp.tool(calcular_debito_tcu)
-mcp.tool(buscar_pedidos_congresso)
-mcp.tool(buscar_contratos_tcu)
-mcp.tool(consultar_cadirreg)
+mcp.tool(buscar_acordaos, tags={"busca", "acordaos", "auditoria"})
+mcp.tool(consultar_inabilitados, tags={"consulta", "inabilitados", "sancoes"})
+mcp.tool(consultar_inidoneos, tags={"consulta", "inidoneos", "sancoes", "licitacoes"})
+mcp.tool(consultar_certidoes_apf, tags={"consulta", "certidoes", "compliance"})
+mcp.tool(calcular_debito_tcu, tags={"calculo", "debito", "correcao-monetaria"})
+mcp.tool(buscar_pedidos_congresso, tags={"busca", "congresso", "fiscalizacao"})
+mcp.tool(buscar_contratos_tcu, tags={"busca", "contratos", "compras"})
+mcp.tool(consultar_cadirreg, tags={"consulta", "contas-irregulares", "sancoes"})
 
 # Resources
 mcp.resource("data://tipos-certidoes-apf", mime_type="application/json")(tipos_certidoes_apf)

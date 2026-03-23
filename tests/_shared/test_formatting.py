@@ -5,6 +5,7 @@ from mcp_brasil._shared.formatting import (
     format_number_br,
     format_percent,
     markdown_table,
+    parse_brl_number,
     truncate_list,
 )
 
@@ -78,3 +79,29 @@ class TestTruncateList:
         assert "item 0" in result
         assert "item 2" in result
         assert "... e mais 7 resultados" in result
+
+
+class TestParseBrlNumber:
+    def test_none(self) -> None:
+        assert parse_brl_number(None) is None
+
+    def test_int(self) -> None:
+        assert parse_brl_number(42) == 42.0
+
+    def test_float(self) -> None:
+        assert parse_brl_number(3.14) == 3.14
+
+    def test_simple_string(self) -> None:
+        assert parse_brl_number("0,00") == 0.0
+
+    def test_thousands(self) -> None:
+        assert parse_brl_number("348.600,00") == 348600.0
+
+    def test_millions(self) -> None:
+        assert parse_brl_number("1.234.567,89") == 1234567.89
+
+    def test_invalid_string(self) -> None:
+        assert parse_brl_number("abc") is None
+
+    def test_non_string_non_number(self) -> None:
+        assert parse_brl_number([]) is None

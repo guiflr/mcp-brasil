@@ -60,10 +60,11 @@ class TestToolExecution:
     async def test_buscar_emendas_pix_e2e(self) -> None:
         mock_data = [
             TransferenciaEspecial(
-                nr_emenda="EMD-E2E",
-                autor_emenda="Dep. Teste",
-                valor_empenhado=100000.0,
-                nm_municipio_beneficiario="Teresina",
+                numero_emenda="EMD-E2E",
+                nome_parlamentar="Dep. Teste",
+                valor_custeio=50000.0,
+                valor_investimento=50000.0,
+                nome_beneficiario="MUNICIPIO TESTE",
                 uf_beneficiario="PI",
             )
         ]
@@ -79,10 +80,10 @@ class TestToolExecution:
     @pytest.mark.asyncio
     async def test_detalhe_emenda_e2e(self) -> None:
         mock_data = TransferenciaEspecial(
-            id_transferencia_especial=42,
-            nr_emenda="EMD-DET",
-            autor_emenda="Dep. Detalhe",
-            valor_pago=50000.0,
+            id_plano_acao=42,
+            numero_emenda="EMD-DET",
+            nome_parlamentar="Dep. Detalhe",
+            valor_custeio=50000.0,
         )
         with patch(
             f"{CLIENT_MODULE}.detalhe_emenda",
@@ -90,5 +91,5 @@ class TestToolExecution:
             return_value=mock_data,
         ):
             async with Client(mcp) as c:
-                result = await c.call_tool("detalhe_emenda", {"id_transferencia": 42})
+                result = await c.call_tool("detalhe_emenda", {"id_plano_acao": 42})
                 assert "EMD-DET" in result.data

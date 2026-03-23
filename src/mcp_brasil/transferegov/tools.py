@@ -23,25 +23,35 @@ def _pagination_hint(count: int, pagina: int) -> str:
     return ""
 
 
+def _valor_total(e: TransferenciaEspecial) -> float | None:
+    """Sum custeio + investimento for display."""
+    if e.valor_custeio is not None or e.valor_investimento is not None:
+        return (e.valor_custeio or 0) + (e.valor_investimento or 0)
+    return None
+
+
 def _format_rows(
     emendas: list[TransferenciaEspecial],
 ) -> list[tuple[str, ...]]:
     """Format a list of emendas into table rows."""
     return [
         (
-            e.nr_emenda or "—",
-            (e.autor_emenda or "—")[:40],
-            e.tipo_emenda or "—",
-            format_brl(e.valor_empenhado) if e.valor_empenhado else "—",
-            format_brl(e.valor_pago) if e.valor_pago else "—",
-            e.nm_municipio_beneficiario or "—",
+            e.numero_emenda or "—",
+            (e.nome_parlamentar or "—")[:40],
+            _fmt_valor(e),
+            (e.nome_beneficiario or "—")[:35],
             e.uf_beneficiario or "—",
         )
         for e in emendas
     ]
 
 
-_HEADERS = ["Emenda", "Autor", "Tipo", "Empenhado", "Pago", "Município", "UF"]
+def _fmt_valor(e: TransferenciaEspecial) -> str:
+    total = _valor_total(e)
+    return format_brl(total) if total else "—"
+
+
+_HEADERS = ["Emenda", "Parlamentar", "Valor", "Beneficiário", "UF"]
 
 
 async def buscar_emendas_pix(
@@ -56,7 +66,7 @@ async def buscar_emendas_pix(
     diretos da União para estados e municípios sem convênio.
 
     Args:
-        ano: Ano de exercício (ex: 2024).
+        ano: Ano do plano de ação (ex: 2024).
         uf: UF do beneficiário (ex: PI, SP).
         pagina: Página de resultados (padrão: 1).
 
@@ -85,7 +95,7 @@ async def buscar_emenda_por_autor(
 
     Args:
         nome_autor: Nome ou parte do nome do parlamentar (ex: "Lira").
-        ano: Ano de exercício (opcional, ex: 2024).
+        ano: Ano do plano de ação (opcional, ex: 2024).
         pagina: Página de resultados (padrão: 1).
 
     Returns:
@@ -101,38 +111,41 @@ async def buscar_emenda_por_autor(
     return table + _pagination_hint(len(emendas), pagina)
 
 
-async def detalhe_emenda(id_transferencia: int) -> str:
-    """Detalha uma emenda pix (transferência especial) por ID.
+async def detalhe_emenda(id_plano_acao: int) -> str:
+    """Detalha uma emenda pix (transferência especial) por ID do plano de ação.
 
     Retorna informações completas de uma transferência especial,
-    incluindo valores empenhados, liquidados e pagos.
+    incluindo valores de custeio e investimento.
 
     Args:
-        id_transferencia: ID da transferência especial no TransfereGov.
+        id_plano_acao: ID do plano de ação no TransfereGov.
 
     Returns:
         Detalhes da emenda.
     """
-    emenda = await client.detalhe_emenda(id_transferencia)
+    emenda = await client.detalhe_emenda(id_plano_acao)
     if not emenda:
-        return f"Emenda pix com ID {id_transferencia} não encontrada."
+        return f"Emenda pix com ID {id_plano_acao} não encontrada."
+
+    custeio = format_brl(emenda.valor_custeio) if emenda.valor_custeio else "—"
+    investimento = format_brl(emenda.valor_investimento) if emenda.valor_investimento else "—"
+    total = _valor_total(emenda)
+    total_fmt = format_brl(total) if total else "—"
 
     lines = [
-        f"## Emenda Pix {emenda.nr_emenda or id_transferencia}\n",
-        f"- **Autor:** {emenda.autor_emenda or '—'}",
-        f"- **Tipo:** {emenda.tipo_emenda or '—'}",
-        f"- **Ano:** {emenda.ano_exercicio or '—'}",
-        f"- **Função:** {emenda.funcao or '—'}",
-        f"- **Subfunção:** {emenda.subfuncao or '—'}",
-        f"- **Objeto:** {emenda.objeto or '—'}",
-        f"- **Valor Empenhado:** "
-        f"{format_brl(emenda.valor_empenhado) if emenda.valor_empenhado else '—'}",
-        f"- **Valor Liquidado:** "
-        f"{format_brl(emenda.valor_liquidado) if emenda.valor_liquidado else '—'}",
-        f"- **Valor Pago:** {format_brl(emenda.valor_pago) if emenda.valor_pago else '—'}",
-        f"- **Município:** {emenda.nm_municipio_beneficiario or '—'}",
+        f"## Emenda Pix {emenda.numero_emenda or id_plano_acao}\n",
+        f"- **Código:** {emenda.codigo_plano_acao or '—'}",
+        f"- **Parlamentar:** {emenda.nome_parlamentar or '—'}",
+        f"- **Ano emenda:** {emenda.ano_emenda or '—'}",
+        f"- **Ano plano:** {emenda.ano or '—'}",
+        f"- **Situação:** {emenda.situacao or '—'}",
+        f"- **Valor Custeio:** {custeio}",
+        f"- **Valor Investimento:** {investimento}",
+        f"- **Valor Total:** {total_fmt}",
+        f"- **Beneficiário:** {emenda.nome_beneficiario or '—'}",
+        f"- **CNPJ:** {emenda.cnpj_beneficiario or '—'}",
         f"- **UF:** {emenda.uf_beneficiario or '—'}",
-        f"- **Entidade:** {emenda.nm_entidade_beneficiaria or '—'}",
+        f"- **Área:** {emenda.area_politica_publica or '—'}",
     ]
     return "\n".join(lines)
 
@@ -149,7 +162,7 @@ async def emendas_por_municipio(
 
     Args:
         nome_municipio: Nome ou parte do nome do município (ex: "Teresina").
-        ano: Ano de exercício (opcional, ex: 2024).
+        ano: Ano do plano de ação (opcional, ex: 2024).
         pagina: Página de resultados (padrão: 1).
 
     Returns:
@@ -169,10 +182,10 @@ async def resumo_emendas_ano(ano: int, pagina: int = 1) -> str:
     """Lista emendas pix de um ano para visão geral.
 
     Retorna uma visão geral das transferências especiais (emendas pix)
-    realizadas em um determinado ano de exercício.
+    realizadas em um determinado ano.
 
     Args:
-        ano: Ano de exercício (ex: 2024).
+        ano: Ano do plano de ação (ex: 2024).
         pagina: Página de resultados (padrão: 1).
 
     Returns:

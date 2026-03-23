@@ -69,6 +69,31 @@ def format_percent(value: float, decimals: int = 2) -> str:
     return f"{format_number_br(value * 100, decimals)}%"
 
 
+def parse_brl_number(value: Any) -> float | None:
+    """Parse a Brazilian-formatted number string into a float.
+
+    Handles strings like "348.600,00" (dot=thousands, comma=decimal).
+    Passes through int/float values unchanged.
+
+    Args:
+        value: Raw value from API (string, int, float, or None).
+
+    Returns:
+        Parsed float or None if unparseable.
+    """
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        cleaned = value.replace(".", "").replace(",", ".")
+        try:
+            return float(cleaned)
+        except ValueError:
+            return None
+    return None
+
+
 def truncate_list(items: Sequence[str], max_items: int = 50) -> str:
     """Join items with newlines, truncating if too many.
 

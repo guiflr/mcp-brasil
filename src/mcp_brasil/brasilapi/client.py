@@ -25,6 +25,7 @@ from __future__ import annotations
 from typing import Any
 
 from mcp_brasil._shared.http_client import http_get
+from mcp_brasil._shared.rate_limiter import RateLimiter
 
 from .constants import (
     BANKS_URL,
@@ -61,42 +62,50 @@ from .schemas import (
     TaxaOficial,
 )
 
+_rate_limiter = RateLimiter(max_requests=60, period=60.0)
+
+
+async def _get(url: str, params: dict[str, Any] | None = None) -> Any:
+    """Rate-limited GET wrapper."""
+    async with _rate_limiter:
+        return await http_get(url, params=params)
+
 
 async def consultar_cep(cep: str) -> Endereco:
     """Fetch address data for a CEP."""
     clean = cep.replace("-", "").strip()
-    data: dict[str, Any] = await http_get(f"{CEP_URL}/{clean}")
+    data: dict[str, Any] = await _get(f"{CEP_URL}/{clean}")
     return Endereco(**data)
 
 
 async def consultar_cnpj(cnpj: str) -> EmpresaCnpj:
     """Fetch company data for a CNPJ."""
     clean = cnpj.replace(".", "").replace("/", "").replace("-", "").strip()
-    data: dict[str, Any] = await http_get(f"{CNPJ_URL}/{clean}")
+    data: dict[str, Any] = await _get(f"{CNPJ_URL}/{clean}")
     return EmpresaCnpj(**data)
 
 
 async def consultar_ddd(ddd: str) -> DddInfo:
     """Fetch cities and state for a DDD area code."""
-    data: dict[str, Any] = await http_get(f"{DDD_URL}/{ddd.strip()}")
+    data: dict[str, Any] = await _get(f"{DDD_URL}/{ddd.strip()}")
     return DddInfo(**data)
 
 
 async def listar_bancos() -> list[Banco]:
     """Fetch all Brazilian banks."""
-    data: list[dict[str, Any]] = await http_get(BANKS_URL)
+    data: list[dict[str, Any]] = await _get(BANKS_URL)
     return [Banco(**b) for b in data]
 
 
 async def consultar_banco(codigo: int) -> Banco:
     """Fetch a specific bank by code."""
-    data: dict[str, Any] = await http_get(f"{BANKS_URL}/{codigo}")
+    data: dict[str, Any] = await _get(f"{BANKS_URL}/{codigo}")
     return Banco(**data)
 
 
 async def listar_moedas() -> list[Moeda]:
     """Fetch available exchange currencies."""
-    data: list[dict[str, Any]] = await http_get(CAMBIO_MOEDAS_URL)
+    data: list[dict[str, Any]] = await _get(CAMBIO_MOEDAS_URL)
     return [
         Moeda(
             simbolo=m.get("simbolo", ""),
@@ -110,7 +119,7 @@ async def listar_moedas() -> list[Moeda]:
 async def consultar_cotacao(moeda: str, data_ref: str) -> Cotacao:
     """Fetch exchange rate for a currency on a specific date."""
     url = f"{CAMBIO_COTACAO_URL}/{moeda.upper()}/{data_ref}"
-    raw: dict[str, Any] = await http_get(url)
+    raw: dict[str, Any] = await _get(url)
     cotacoes = raw.get("cotacoes", [])
     cotacao = cotacoes[0] if cotacoes else {}
     return Cotacao(
@@ -123,19 +132,19 @@ async def consultar_cotacao(moeda: str, data_ref: str) -> Cotacao:
 
 async def consultar_feriados(ano: int) -> list[Feriado]:
     """Fetch national holidays for a given year."""
-    data: list[dict[str, Any]] = await http_get(f"{FERIADOS_URL}/{ano}")
+    data: list[dict[str, Any]] = await _get(f"{FERIADOS_URL}/{ano}")
     return [Feriado(**f) for f in data]
 
 
 async def consultar_taxa(sigla: str) -> TaxaOficial:
     """Fetch an official economic rate by abbreviation."""
-    data: dict[str, Any] = await http_get(f"{TAXAS_URL}/{sigla.upper()}")
+    data: dict[str, Any] = await _get(f"{TAXAS_URL}/{sigla.upper()}")
     return TaxaOficial(nome=data.get("nome", sigla), valor=data.get("valor"))
 
 
 async def listar_tabelas_fipe() -> list[FipeTabela]:
     """Fetch FIPE reference tables."""
-    data: list[dict[str, Any]] = await http_get(FIPE_TABELAS_URL)
+    data: list[dict[str, Any]] = await _get(FIPE_TABELAS_URL)
     return [FipeTabela(**t) for t in data]
 
 
@@ -147,7 +156,7 @@ async def listar_marcas_fipe(
     params: dict[str, str] = {}
     if tabela_referencia is not None:
         params["tabela_referencia"] = str(tabela_referencia)
-    data: list[dict[str, Any]] = await http_get(url, params=params or None)
+    data: list[dict[str, Any]] = await _get(url, params=params or None)
     return [FipeMarca(**m) for m in data]
 
 
@@ -159,37 +168,37 @@ async def buscar_veiculos_fipe(
     params: dict[str, str] = {}
     if tabela_referencia is not None:
         params["tabela_referencia"] = str(tabela_referencia)
-    data: list[dict[str, Any]] = await http_get(url, params=params or None)
+    data: list[dict[str, Any]] = await _get(url, params=params or None)
     return [FipeVeiculo(**v) for v in data]
 
 
 async def consultar_isbn(isbn: str) -> Livro:
     """Fetch book data by ISBN."""
     clean = isbn.replace("-", "").strip()
-    data: dict[str, Any] = await http_get(f"{ISBN_URL}/{clean}")
+    data: dict[str, Any] = await _get(f"{ISBN_URL}/{clean}")
     return Livro(**data)
 
 
 async def buscar_ncm(busca: str) -> list[NcmItem]:
     """Search NCM codes by description or code."""
-    data: list[dict[str, Any]] = await http_get(NCM_URL, params={"search": busca})
+    data: list[dict[str, Any]] = await _get(NCM_URL, params={"search": busca})
     return [NcmItem(**n) for n in data]
 
 
 async def consultar_ncm(codigo: str) -> NcmItem:
     """Fetch a specific NCM code."""
     clean = codigo.replace(".", "").strip()
-    data: dict[str, Any] = await http_get(f"{NCM_URL}/{clean}")
+    data: dict[str, Any] = await _get(f"{NCM_URL}/{clean}")
     return NcmItem(**data)
 
 
 async def listar_pix_participantes() -> list[PixParticipante]:
     """Fetch all PIX participants."""
-    data: list[dict[str, Any]] = await http_get(PIX_URL)
+    data: list[dict[str, Any]] = await _get(PIX_URL)
     return [PixParticipante(**p) for p in data]
 
 
 async def consultar_registro_br(dominio: str) -> RegistroBrDominio:
     """Check domain availability at Registro.br."""
-    data: dict[str, Any] = await http_get(f"{REGISTRO_BR_URL}/{dominio}")
+    data: dict[str, Any] = await _get(f"{REGISTRO_BR_URL}/{dominio}")
     return RegistroBrDominio(**data)

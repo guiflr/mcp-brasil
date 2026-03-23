@@ -16,14 +16,16 @@ MODULE = "mcp_brasil.transferegov.client"
 
 def _make_emenda(**kwargs: object) -> TransferenciaEspecial:
     defaults: dict[str, object] = {
-        "id_transferencia_especial": 1,
-        "ano_exercicio": 2024,
-        "nr_emenda": "EMD-PIX-001",
-        "autor_emenda": "Dep. Fulano",
-        "tipo_emenda": "Individual",
-        "valor_empenhado": 500000.0,
-        "valor_pago": 300000.0,
-        "nm_municipio_beneficiario": "Teresina",
+        "id_plano_acao": 3221,
+        "codigo_plano_acao": "0903-003221",
+        "ano": 2024,
+        "situacao": "CIENTE",
+        "nome_parlamentar": "Dep. Fulano",
+        "numero_emenda": "202427070006",
+        "ano_emenda": "2024",
+        "valor_custeio": 30000.0,
+        "valor_investimento": 80000.0,
+        "nome_beneficiario": "MUNICIPIO DE TERESINA",
         "uf_beneficiario": "PI",
     }
     defaults.update(kwargs)
@@ -41,9 +43,9 @@ class TestBuscarEmendasPix:
         mock_data = [_make_emenda()]
         with patch(f"{MODULE}.buscar_emendas_pix", new_callable=AsyncMock, return_value=mock_data):
             result = await tools.buscar_emendas_pix(ano=2024)
-        assert "EMD-PIX-001" in result
+        assert "202427070006" in result
         assert "Dep. Fulano" in result
-        assert "R$ 500.000,00" in result
+        assert "R$ 110.000,00" in result  # custeio 30k + investimento 80k
 
     @pytest.mark.asyncio
     async def test_empty(self) -> None:
@@ -66,7 +68,7 @@ class TestBuscarEmendaPorAutor:
         ):
             result = await tools.buscar_emenda_por_autor("Fulano")
         assert "Dep. Fulano" in result
-        assert "Teresina" in result
+        assert "TERESINA" in result
 
     @pytest.mark.asyncio
     async def test_empty(self) -> None:
@@ -84,18 +86,15 @@ class TestDetalheEmenda:
     @pytest.mark.asyncio
     async def test_formats_detail(self) -> None:
         mock_data = _make_emenda(
-            funcao="Saúde",
-            subfuncao="Atenção Básica",
-            objeto="Construção de UBS",
-            valor_liquidado=400000.0,
-            nm_entidade_beneficiaria="Prefeitura de Teresina",
+            area_politica_publica="10-Saude / 302-Atencao Basica",
+            cnpj_beneficiario="04218211000156",
         )
         with patch(f"{MODULE}.detalhe_emenda", new_callable=AsyncMock, return_value=mock_data):
-            result = await tools.detalhe_emenda(1)
-        assert "EMD-PIX-001" in result
-        assert "R$ 500.000,00" in result
-        assert "Saúde" in result
-        assert "Construção de UBS" in result
+            result = await tools.detalhe_emenda(3221)
+        assert "202427070006" in result
+        assert "R$ 30.000,00" in result  # custeio
+        assert "R$ 80.000,00" in result  # investimento
+        assert "Saude" in result
 
     @pytest.mark.asyncio
     async def test_not_found(self) -> None:
@@ -117,8 +116,8 @@ class TestEmendasPorMunicipio:
             f"{MODULE}.emendas_por_municipio", new_callable=AsyncMock, return_value=mock_data
         ):
             result = await tools.emendas_por_municipio("Teresina")
-        assert "Teresina" in result
-        assert "R$ 300.000,00" in result
+        assert "TERESINA" in result
+        assert "R$ 110.000,00" in result
 
     @pytest.mark.asyncio
     async def test_empty(self) -> None:
@@ -139,7 +138,7 @@ class TestResumoEmendasAno:
         with patch(f"{MODULE}.resumo_emendas_ano", new_callable=AsyncMock, return_value=mock_data):
             result = await tools.resumo_emendas_ano(2024)
         assert "2024" in result
-        assert "EMD-PIX-001" in result
+        assert "202427070006" in result
 
     @pytest.mark.asyncio
     async def test_empty(self) -> None:
@@ -156,7 +155,7 @@ class TestResumoEmendasAno:
 class TestPaginationHints:
     @pytest.mark.asyncio
     async def test_shows_next_page_hint(self) -> None:
-        data = [_make_emenda(nr_emenda=f"EMD-{i}") for i in range(DEFAULT_PAGE_SIZE)]
+        data = [_make_emenda(numero_emenda=f"EMD-{i}") for i in range(DEFAULT_PAGE_SIZE)]
         with patch(f"{MODULE}.buscar_emendas_pix", new_callable=AsyncMock, return_value=data):
             result = await tools.buscar_emendas_pix(ano=2024)
         assert "pagina=2" in result

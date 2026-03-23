@@ -7,6 +7,7 @@ import httpx
 import pytest
 import respx
 
+from mcp_brasil._shared.rate_limiter import RateLimiter
 from mcp_brasil.brasilapi import client
 from mcp_brasil.brasilapi.constants import (
     BANKS_URL,
@@ -14,6 +15,21 @@ from mcp_brasil.brasilapi.constants import (
     CNPJ_URL,
     FERIADOS_URL,
 )
+
+# ---------------------------------------------------------------------------
+# Rate limiter
+# ---------------------------------------------------------------------------
+
+
+class TestRateLimiter:
+    def test_rate_limiter_exists(self) -> None:
+        assert hasattr(client, "_rate_limiter")
+        assert isinstance(client._rate_limiter, RateLimiter)
+
+    def test_rate_limiter_config(self) -> None:
+        assert client._rate_limiter._max_requests == 60
+        assert client._rate_limiter._period == 60.0
+
 
 # ---------------------------------------------------------------------------
 # consultar_cep

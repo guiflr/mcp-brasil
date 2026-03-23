@@ -7,4 +7,4 @@ DEFAULT_PAGE_SIZE = 15
 TRANSFEREGOV_API_BASE = "https://api.transferegov.gestao.gov.br"
 
 # Endpoints
-TRANSFERENCIAS_ESPECIAIS_URL = f"{TRANSFEREGOV_API_BASE}/transferenciasespeciais"
+PLANO_ACAO_URL = f"{TRANSFEREGOV_API_BASE}/transferenciasespeciais/plano_acao_especial"

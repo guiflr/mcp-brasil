@@ -6,19 +6,18 @@ from pydantic import BaseModel
 
 
 class TransferenciaEspecial(BaseModel):
-    """Transferência especial (emenda pix)."""
+    """Transferência especial (emenda pix) — plano de ação."""
 
-    id_transferencia_especial: int | None = None
-    ano_exercicio: int | None = None
-    nr_emenda: str | None = None
-    autor_emenda: str | None = None
-    tipo_emenda: str | None = None
-    funcao: str | None = None
-    subfuncao: str | None = None
-    valor_empenhado: float | None = None
-    valor_liquidado: float | None = None
-    valor_pago: float | None = None
-    nm_municipio_beneficiario: str | None = None
+    id_plano_acao: int | None = None
+    codigo_plano_acao: str | None = None
+    ano: int | None = None
+    situacao: str | None = None
+    nome_parlamentar: str | None = None
+    numero_emenda: str | None = None
+    ano_emenda: str | None = None
+    valor_custeio: float | None = None
+    valor_investimento: float | None = None
+    cnpj_beneficiario: str | None = None
+    nome_beneficiario: str | None = None
     uf_beneficiario: str | None = None
-    nm_entidade_beneficiaria: str | None = None
-    objeto: str | None = None
+    area_politica_publica: str | None = None

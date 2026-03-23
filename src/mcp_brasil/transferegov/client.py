@@ -4,7 +4,7 @@ PostgREST API — no auth, filters via query params (column=operator.value).
 Pagination via limit/offset query params.
 
 Endpoints:
-    - /transferenciasespeciais → buscar_emendas_pix
+    - /transferenciasespeciais/plano_acao_especial → buscar_emendas_pix
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ from typing import Any
 
 from mcp_brasil._shared.http_client import http_get
 
-from .constants import DEFAULT_PAGE_SIZE, TRANSFERENCIAS_ESPECIAIS_URL
+from .constants import DEFAULT_PAGE_SIZE, PLANO_ACAO_URL
 from .schemas import TransferenciaEspecial
 
 
@@ -35,20 +35,19 @@ def _build_query(
 def _parse_transferencia(raw: dict[str, Any]) -> TransferenciaEspecial:
     """Parse a raw TransfereGov JSON into a TransferenciaEspecial model."""
     return TransferenciaEspecial(
-        id_transferencia_especial=raw.get("id_transferencia_especial"),
-        ano_exercicio=raw.get("ano_exercicio"),
-        nr_emenda=raw.get("nr_emenda"),
-        autor_emenda=raw.get("autor_emenda"),
-        tipo_emenda=raw.get("tipo_emenda"),
-        funcao=raw.get("funcao"),
-        subfuncao=raw.get("subfuncao"),
-        valor_empenhado=raw.get("valor_empenhado"),
-        valor_liquidado=raw.get("valor_liquidado"),
-        valor_pago=raw.get("valor_pago"),
-        nm_municipio_beneficiario=raw.get("nm_municipio_beneficiario"),
-        uf_beneficiario=raw.get("uf_beneficiario"),
-        nm_entidade_beneficiaria=raw.get("nm_entidade_beneficiaria"),
-        objeto=raw.get("objeto"),
+        id_plano_acao=raw.get("id_plano_acao"),
+        codigo_plano_acao=raw.get("codigo_plano_acao"),
+        ano=raw.get("ano_plano_acao"),
+        situacao=raw.get("situacao_plano_acao"),
+        nome_parlamentar=raw.get("nome_parlamentar_emenda_plano_acao"),
+        numero_emenda=raw.get("numero_emenda_parlamentar_plano_acao"),
+        ano_emenda=raw.get("ano_emenda_parlamentar_plano_acao"),
+        valor_custeio=raw.get("valor_custeio_plano_acao"),
+        valor_investimento=raw.get("valor_investimento_plano_acao"),
+        cnpj_beneficiario=raw.get("cnpj_beneficiario_plano_acao"),
+        nome_beneficiario=raw.get("nome_beneficiario_plano_acao"),
+        uf_beneficiario=raw.get("uf_beneficiario_plano_acao"),
+        area_politica_publica=raw.get("codigo_descricao_areas_politicas_publicas_plano_acao"),
     )
 
 
@@ -56,7 +55,7 @@ async def _get(filters: dict[str, str], pagina: int = 1) -> list[TransferenciaEs
     """Make a GET to the TransfereGov API with PostgREST filters."""
     offset = (pagina - 1) * DEFAULT_PAGE_SIZE
     params = _build_query(filters, limit=DEFAULT_PAGE_SIZE, offset=offset)
-    data = await http_get(TRANSFERENCIAS_ESPECIAIS_URL, params=params)
+    data = await http_get(PLANO_ACAO_URL, params=params)
     if isinstance(data, list):
         return [_parse_transferencia(item) for item in data]
     return []
@@ -70,15 +69,15 @@ async def buscar_emendas_pix(
     """Lista transferências especiais (emendas pix).
 
     Args:
-        ano: Ano de exercício.
+        ano: Ano do plano de ação.
         uf: UF do beneficiário.
         pagina: Número da página.
     """
     filters: dict[str, str] = {}
     if ano:
-        filters["ano_exercicio"] = f"eq.{ano}"
+        filters["ano_plano_acao"] = f"eq.{ano}"
     if uf:
-        filters["uf_beneficiario"] = f"eq.{uf.upper()}"
+        filters["uf_beneficiario_plano_acao"] = f"eq.{uf.upper()}"
     return await _get(filters, pagina)
 
 
@@ -91,24 +90,26 @@ async def buscar_emenda_por_autor(
 
     Args:
         nome_autor: Nome (ou parte do nome) do autor da emenda.
-        ano: Ano de exercício (opcional).
+        ano: Ano do plano de ação (opcional).
         pagina: Número da página.
     """
-    filters: dict[str, str] = {"autor_emenda": f"ilike.*{nome_autor}*"}
+    filters: dict[str, str] = {
+        "nome_parlamentar_emenda_plano_acao": f"ilike.*{nome_autor}*",
+    }
     if ano:
-        filters["ano_exercicio"] = f"eq.{ano}"
+        filters["ano_plano_acao"] = f"eq.{ano}"
     return await _get(filters, pagina)
 
 
-async def detalhe_emenda(id_transferencia: int) -> TransferenciaEspecial | None:
+async def detalhe_emenda(id_plano_acao: int) -> TransferenciaEspecial | None:
     """Busca detalhe de uma emenda pix específica.
 
     Args:
-        id_transferencia: ID da transferência especial.
+        id_plano_acao: ID do plano de ação.
     """
-    filters: dict[str, str] = {"id_transferencia_especial": f"eq.{id_transferencia}"}
+    filters: dict[str, str] = {"id_plano_acao": f"eq.{id_plano_acao}"}
     params = _build_query(filters, limit=1, offset=0)
-    data = await http_get(TRANSFERENCIAS_ESPECIAIS_URL, params=params)
+    data = await http_get(PLANO_ACAO_URL, params=params)
     if isinstance(data, list) and len(data) > 0:
         return _parse_transferencia(data[0])
     return None
@@ -123,12 +124,14 @@ async def emendas_por_municipio(
 
     Args:
         nome_municipio: Nome (ou parte do nome) do município beneficiário.
-        ano: Ano de exercício (opcional).
+        ano: Ano do plano de ação (opcional).
         pagina: Número da página.
     """
-    filters: dict[str, str] = {"nm_municipio_beneficiario": f"ilike.*{nome_municipio}*"}
+    filters: dict[str, str] = {
+        "nome_beneficiario_plano_acao": f"ilike.*{nome_municipio}*",
+    }
     if ano:
-        filters["ano_exercicio"] = f"eq.{ano}"
+        filters["ano_plano_acao"] = f"eq.{ano}"
     return await _get(filters, pagina)
 
 
@@ -139,8 +142,8 @@ async def resumo_emendas_ano(
     """Lista emendas pix de um ano para visão geral.
 
     Args:
-        ano: Ano de exercício.
+        ano: Ano do plano de ação.
         pagina: Número da página.
     """
-    filters: dict[str, str] = {"ano_exercicio": f"eq.{ano}"}
+    filters: dict[str, str] = {"ano_plano_acao": f"eq.{ano}"}
     return await _get(filters, pagina)

@@ -10,9 +10,49 @@ from mcp_brasil.data.compras.pncp.constants import (
     CONTRATACOES_URL,
     CONTRATOS_URL,
     FORNECEDORES_URL,
-    ITENS_URL,
     ORGAOS_URL,
 )
+
+# Common test dates (YYYYMMDD)
+DATE_INI = "20240101"
+DATE_FIM = "20240331"
+
+
+# ---------------------------------------------------------------------------
+# normalizar_data / validar_periodo
+# ---------------------------------------------------------------------------
+
+
+class TestNormalizarData:
+    def test_yyyymmdd_passthrough(self) -> None:
+        assert client.normalizar_data("20240315") == "20240315"
+
+    def test_yyyy_mm_dd(self) -> None:
+        assert client.normalizar_data("2024-03-15") == "20240315"
+
+    def test_dd_mm_yyyy(self) -> None:
+        assert client.normalizar_data("15/03/2024") == "20240315"
+
+    def test_invalid_format_raises(self) -> None:
+        with pytest.raises(ValueError, match="Formato de data inválido"):
+            client.normalizar_data("March 15, 2024")
+
+    def test_whitespace_stripped(self) -> None:
+        assert client.normalizar_data("  20240315  ") == "20240315"
+
+
+class TestValidarPeriodo:
+    def test_valid_period(self) -> None:
+        client.validar_periodo("20240101", "20240331")  # 90 days
+
+    def test_end_before_start_raises(self) -> None:
+        with pytest.raises(ValueError, match="anterior"):
+            client.validar_periodo("20240331", "20240101")
+
+    def test_exceeds_max_range_raises(self) -> None:
+        with pytest.raises(ValueError, match="excede o máximo"):
+            client.validar_periodo("20240101", "20250201")  # >365 days
+
 
 # ---------------------------------------------------------------------------
 # buscar_contratacoes
@@ -55,7 +95,9 @@ class TestBuscarContratacoes:
                 },
             )
         )
-        result = await client.buscar_contratacoes(query="computadores")
+        result = await client.buscar_contratacoes(
+            data_inicial=DATE_INI, data_final=DATE_FIM, modalidade=6
+        )
         assert result.total == 1
         assert len(result.contratacoes) == 1
         c = result.contratacoes[0]
@@ -78,7 +120,9 @@ class TestBuscarContratacoes:
                 json={"totalRegistros": 0, "data": []},
             )
         )
-        result = await client.buscar_contratacoes(query="inexistente")
+        result = await client.buscar_contratacoes(
+            data_inicial=DATE_INI, data_final=DATE_FIM, modalidade=6
+        )
         assert result.total == 0
         assert result.contratacoes == []
 
@@ -99,10 +143,41 @@ class TestBuscarContratacoes:
                 },
             )
         )
-        result = await client.buscar_contratacoes(query="teste")
-        assert result.total == 1
+        result = await client.buscar_contratacoes(
+            data_inicial=DATE_INI, data_final=DATE_FIM, modalidade=6
+        )
         assert len(result.contratacoes) == 1
         assert result.contratacoes[0].objeto == "Teste fallback"
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_client_side_text_filter(self) -> None:
+        respx.get(CONTRATACOES_URL).mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "totalRegistros": 2,
+                    "data": [
+                        {
+                            "orgaoEntidade": {},
+                            "objetoCompra": "Aquisição de computadores",
+                        },
+                        {
+                            "orgaoEntidade": {},
+                            "objetoCompra": "Serviço de limpeza",
+                        },
+                    ],
+                },
+            )
+        )
+        result = await client.buscar_contratacoes(
+            data_inicial=DATE_INI,
+            data_final=DATE_FIM,
+            modalidade=6,
+            texto="computadores",
+        )
+        assert result.total == 1
+        assert result.contratacoes[0].objeto == "Aquisição de computadores"
 
 
 # ---------------------------------------------------------------------------
@@ -142,7 +217,7 @@ class TestBuscarContratos:
                 },
             )
         )
-        result = await client.buscar_contratos(query="medicamentos")
+        result = await client.buscar_contratos(data_inicial=DATE_INI, data_final=DATE_FIM)
         assert result.total == 1
         assert len(result.contratos) == 1
         c = result.contratos[0]
@@ -167,7 +242,7 @@ class TestBuscarContratos:
                 json={"totalRegistros": 0, "data": []},
             )
         )
-        result = await client.buscar_contratos(query="inexistente")
+        result = await client.buscar_contratos(data_inicial=DATE_INI, data_final=DATE_FIM)
         assert result.total == 0
         assert result.contratos == []
 
@@ -192,10 +267,39 @@ class TestBuscarContratos:
                 },
             )
         )
-        result = await client.buscar_contratos(query="teste")
+        result = await client.buscar_contratos(data_inicial=DATE_INI, data_final=DATE_FIM)
         c = result.contratos[0]
         assert c.fornecedor_cnpj == "99988877000166"
         assert c.fornecedor_nome == "Fornecedor Alt"
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_client_side_text_filter(self) -> None:
+        respx.get(CONTRATOS_URL).mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "totalRegistros": 2,
+                    "data": [
+                        {
+                            "orgaoEntidade": {},
+                            "objetoContrato": "Fornecimento de medicamentos",
+                        },
+                        {
+                            "orgaoEntidade": {},
+                            "objetoContrato": "Serviço de TI",
+                        },
+                    ],
+                },
+            )
+        )
+        result = await client.buscar_contratos(
+            data_inicial=DATE_INI,
+            data_final=DATE_FIM,
+            texto="medicamentos",
+        )
+        assert result.total == 1
+        assert result.contratos[0].objeto == "Fornecimento de medicamentos"
 
 
 # ---------------------------------------------------------------------------
@@ -233,7 +337,7 @@ class TestBuscarAtas:
                 },
             )
         )
-        result = await client.buscar_atas(query="escritório")
+        result = await client.buscar_atas(data_inicial=DATE_INI, data_final=DATE_FIM)
         assert result.total == 1
         assert len(result.atas) == 1
         a = result.atas[0]
@@ -257,7 +361,7 @@ class TestBuscarAtas:
                 json={"totalRegistros": 0, "data": []},
             )
         )
-        result = await client.buscar_atas(query="inexistente")
+        result = await client.buscar_atas(data_inicial=DATE_INI, data_final=DATE_FIM)
         assert result.total == 0
         assert result.atas == []
 
@@ -284,7 +388,7 @@ class TestBuscarAtas:
                 },
             )
         )
-        result = await client.buscar_atas(query="ata")
+        result = await client.buscar_atas(data_inicial=DATE_INI, data_final=DATE_FIM)
         a = result.atas[0]
         assert a.fornecedor_cnpj == "11122233000144"
         assert a.fornecedor_nome == "Fornecedor Ata Alt"
@@ -373,84 +477,6 @@ class TestConsultarFornecedor:
         assert f.municipio == "Rio de Janeiro"
         assert f.uf == "RJ"
         assert f.porte == "Grande"
-
-
-# ---------------------------------------------------------------------------
-# buscar_itens
-# ---------------------------------------------------------------------------
-
-
-class TestBuscarItens:
-    @pytest.mark.asyncio
-    @respx.mock
-    async def test_returns_parsed_itens(self) -> None:
-        respx.get(ITENS_URL).mock(
-            return_value=httpx.Response(
-                200,
-                json={
-                    "totalRegistros": 1,
-                    "data": [
-                        {
-                            "numeroItem": 1,
-                            "descricao": "Computador desktop",
-                            "quantidade": 50.0,
-                            "unidadeMedida": "UN",
-                            "valorUnitarioEstimado": 5000.0,
-                            "valorTotal": 250000.0,
-                            "situacaoCompraItemNome": "Homologado",
-                        }
-                    ],
-                },
-            )
-        )
-        result = await client.buscar_itens(query="computador")
-        assert result.total == 1
-        assert len(result.itens) == 1
-        item = result.itens[0]
-        assert item.numero_item == 1
-        assert item.descricao == "Computador desktop"
-        assert item.quantidade == 50.0
-        assert item.unidade_medida == "UN"
-        assert item.valor_unitario == 5000.0
-        assert item.valor_total == 250000.0
-        assert item.situacao == "Homologado"
-
-    @pytest.mark.asyncio
-    @respx.mock
-    async def test_empty_response(self) -> None:
-        respx.get(ITENS_URL).mock(
-            return_value=httpx.Response(
-                200,
-                json={"totalRegistros": 0, "data": []},
-            )
-        )
-        result = await client.buscar_itens(query="inexistente")
-        assert result.total == 0
-        assert result.itens == []
-
-    @pytest.mark.asyncio
-    @respx.mock
-    async def test_item_fields_fallback(self) -> None:
-        respx.get(ITENS_URL).mock(
-            return_value=httpx.Response(
-                200,
-                json={
-                    "count": 1,
-                    "resultado": [
-                        {
-                            "numeroItem": 2,
-                            "materialServico": "Monitor LED 24 polegadas",
-                            "quantidade": 100.0,
-                        }
-                    ],
-                },
-            )
-        )
-        result = await client.buscar_itens(query="monitor")
-        item = result.itens[0]
-        assert item.numero_item == 2
-        assert item.descricao == "Monitor LED 24 polegadas"
-        assert item.quantidade == 100.0
 
 
 # ---------------------------------------------------------------------------

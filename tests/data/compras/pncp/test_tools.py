@@ -18,13 +18,15 @@ from mcp_brasil.data.compras.pncp.schemas import (
     ContratoResultado,
     Fornecedor,
     FornecedorResultado,
-    ItemContratacao,
-    ItemResultado,
     OrgaoContratante,
     OrgaoResultado,
 )
 
 CLIENT_MODULE = "mcp_brasil.data.compras.pncp.client"
+
+# Common test dates
+DATE_INI = "20240101"
+DATE_FIM = "20240331"
 
 
 def _mock_ctx() -> MagicMock:
@@ -50,8 +52,8 @@ class TestBuscarContratacoes:
                     orgao_cnpj="00394460000141",
                     orgao_nome="Ministério da Educação",
                     objeto="Aquisição de computadores",
-                    modalidade_id=1,
-                    modalidade_nome="Pregão eletrônico",
+                    modalidade_id=6,
+                    modalidade_nome="Pregão - Eletrônico",
                     situacao_nome="Publicada",
                     valor_estimado=500000.0,
                     valor_homologado=480000.0,
@@ -69,11 +71,11 @@ class TestBuscarContratacoes:
             new_callable=AsyncMock,
             return_value=mock_data,
         ):
-            result = await tools.buscar_contratacoes("computadores", ctx)
+            result = await tools.buscar_contratacoes(DATE_INI, DATE_FIM, 6, ctx)
         assert "Aquisição de computadores" in result
         assert "Ministério da Educação" in result
         assert "00394460000141" in result
-        assert "Pregão eletrônico" in result
+        assert "Pregão - Eletrônico" in result
         assert "Publicada" in result
         assert "R$ 500.000,00" in result
         assert "R$ 480.000,00" in result
@@ -92,9 +94,19 @@ class TestBuscarContratacoes:
             new_callable=AsyncMock,
             return_value=mock_data,
         ):
-            result = await tools.buscar_contratacoes("xyzinexistente", ctx)
+            result = await tools.buscar_contratacoes(DATE_INI, DATE_FIM, 6, ctx)
         assert "Nenhuma contratação encontrada" in result
-        assert "xyzinexistente" in result
+
+    @pytest.mark.asyncio
+    async def test_validation_error(self) -> None:
+        ctx = _mock_ctx()
+        with patch(
+            f"{CLIENT_MODULE}.buscar_contratacoes",
+            new_callable=AsyncMock,
+            side_effect=ValueError("data_final é anterior a data_inicial"),
+        ):
+            result = await tools.buscar_contratacoes("20240331", "20240101", 6, ctx)
+        assert "Erro de validação" in result
 
 
 # ---------------------------------------------------------------------------
@@ -129,7 +141,7 @@ class TestBuscarContratos:
             new_callable=AsyncMock,
             return_value=mock_data,
         ):
-            result = await tools.buscar_contratos(ctx, texto="medicamentos")
+            result = await tools.buscar_contratos(DATE_INI, DATE_FIM, ctx, texto="medicamentos")
         assert "Fornecimento de medicamentos" in result
         assert "Ministério da Saúde" in result
         assert "Empresa Pharma LTDA" in result
@@ -142,10 +154,27 @@ class TestBuscarContratos:
         assert "1 contratos" in result
 
     @pytest.mark.asyncio
-    async def test_missing_filter_validation(self) -> None:
+    async def test_empty_results(self) -> None:
+        mock_data = ContratoResultado(total=0, contratos=[])
         ctx = _mock_ctx()
-        result = await tools.buscar_contratos(ctx)
-        assert "Informe pelo menos um filtro" in result
+        with patch(
+            f"{CLIENT_MODULE}.buscar_contratos",
+            new_callable=AsyncMock,
+            return_value=mock_data,
+        ):
+            result = await tools.buscar_contratos(DATE_INI, DATE_FIM, ctx)
+        assert "Nenhum contrato encontrado" in result
+
+    @pytest.mark.asyncio
+    async def test_validation_error(self) -> None:
+        ctx = _mock_ctx()
+        with patch(
+            f"{CLIENT_MODULE}.buscar_contratos",
+            new_callable=AsyncMock,
+            side_effect=ValueError("Período excede o máximo"),
+        ):
+            result = await tools.buscar_contratos("20240101", "20260101", ctx)
+        assert "Erro de validação" in result
 
 
 # ---------------------------------------------------------------------------
@@ -179,7 +208,7 @@ class TestBuscarAtas:
             new_callable=AsyncMock,
             return_value=mock_data,
         ):
-            result = await tools.buscar_atas(ctx, texto="escritório")
+            result = await tools.buscar_atas(DATE_INI, DATE_FIM, ctx, texto="escritório")
         assert "material de escritório" in result
         assert "Universidade Federal" in result
         assert "Papelaria Central LTDA" in result
@@ -192,10 +221,27 @@ class TestBuscarAtas:
         assert "1 atas" in result
 
     @pytest.mark.asyncio
-    async def test_missing_filter_validation(self) -> None:
+    async def test_empty_results(self) -> None:
+        mock_data = AtaResultado(total=0, atas=[])
         ctx = _mock_ctx()
-        result = await tools.buscar_atas(ctx)
-        assert "Informe pelo menos um filtro" in result
+        with patch(
+            f"{CLIENT_MODULE}.buscar_atas",
+            new_callable=AsyncMock,
+            return_value=mock_data,
+        ):
+            result = await tools.buscar_atas(DATE_INI, DATE_FIM, ctx)
+        assert "Nenhuma ata de registro de preço encontrada" in result
+
+    @pytest.mark.asyncio
+    async def test_validation_error(self) -> None:
+        ctx = _mock_ctx()
+        with patch(
+            f"{CLIENT_MODULE}.buscar_atas",
+            new_callable=AsyncMock,
+            side_effect=ValueError("data_final é anterior"),
+        ):
+            result = await tools.buscar_atas("20240331", "20240101", ctx)
+        assert "Erro de validação" in result
 
 
 # ---------------------------------------------------------------------------
@@ -247,63 +293,6 @@ class TestConsultarFornecedor:
             result = await tools.consultar_fornecedor("00000000000000", ctx)
         assert "Nenhum fornecedor encontrado" in result
         assert "00000000000000" in result
-
-
-# ---------------------------------------------------------------------------
-# buscar_itens
-# ---------------------------------------------------------------------------
-
-
-class TestBuscarItens:
-    @pytest.mark.asyncio
-    async def test_formats_results(self) -> None:
-        mock_data = ItemResultado(
-            total=1,
-            itens=[
-                ItemContratacao(
-                    numero_item=1,
-                    descricao="Computador desktop",
-                    quantidade=50.0,
-                    unidade_medida="UN",
-                    valor_unitario=5000.0,
-                    valor_total=250000.0,
-                    situacao="Homologado",
-                ),
-            ],
-        )
-        ctx = _mock_ctx()
-        with patch(
-            f"{CLIENT_MODULE}.buscar_itens",
-            new_callable=AsyncMock,
-            return_value=mock_data,
-        ):
-            result = await tools.buscar_itens(ctx, texto="computador")
-        assert "Computador desktop" in result
-        assert "R$ 5.000,00" in result
-        assert "R$ 250.000,00" in result
-        assert "50.0" in result
-        assert "UN" in result
-        assert "Homologado" in result
-        assert "1 itens" in result
-
-    @pytest.mark.asyncio
-    async def test_empty_results(self) -> None:
-        mock_data = ItemResultado(total=0, itens=[])
-        ctx = _mock_ctx()
-        with patch(
-            f"{CLIENT_MODULE}.buscar_itens",
-            new_callable=AsyncMock,
-            return_value=mock_data,
-        ):
-            result = await tools.buscar_itens(ctx, texto="xyzinexistente")
-        assert "Nenhum item encontrado" in result
-        assert "xyzinexistente" in result
-
-    @pytest.mark.asyncio
-    async def test_missing_filter_validation(self) -> None:
-        ctx = _mock_ctx()
-        result = await tools.buscar_itens(ctx)
-        assert "Informe pelo menos um filtro" in result
 
 
 # ---------------------------------------------------------------------------

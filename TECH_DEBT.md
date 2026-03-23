@@ -91,11 +91,19 @@
 
 - [x] **Limited to 3 tools** — Resolvido. Adicionada `buscar_trechos` (GET /gazettes/{territory_id}/excerpts). Feature agora tem 4 tools.
 - [x] **No excerpt highlighting** — Resolvido. HTML tags (`<em>`, `<b>`, etc.) são removidas dos excerpts via `re.sub(r"<[^>]+>", "")` antes de truncar a 500 chars.
+- [x] **JSONDecodeError em respostas vazias** — API Querido Diário pode retornar respostas vazias/non-JSON. Adicionado try/except `HttpClientError` em `buscar_diarios` e `buscar_trechos` que retorna resultado vazio ao invés de crashar.
 
 ## Compras Feature
 
-- [x] **Limited to 3 tools** — Resolvido. Adicionadas `consultar_fornecedor`, `buscar_itens`, `consultar_orgao`. Feature agora tem 6 tools. CEIS/CNEP coberto por transparência. Comprasnet deferred.
-- [ ] **PNCP API response format unverified** — Response parsing uses `data.resultado` fallback. Real API response shape needs validation against live PNCP endpoint. Agora 6 endpoints para validar.
+- [x] **PNCP: 8 bugs corrigidos em batch** — Validação real contra OpenAPI spec (`/v3/api-docs`):
+  1. `buscar_contratacoes` não exigia `dataInicial`/`dataFinal`/`modalidade` (obrigatórios na API)
+  2. API PNCP **não tem parâmetro `q`** (busca textual) — ignorava silenciosamente. Implementado filtro client-side `_filtrar_por_texto()`
+  3. `buscar_itens` removido — endpoint `/v1/itens` retorna 404 (não existe no OpenAPI spec)
+  4. `buscar_contratos`/`buscar_atas` não exigiam datas (obrigatórias na API)
+  5. Formato de data errado — API exige YYYYMMDD, não DD/MM/YYYY. Adicionado `normalizar_data()` que aceita 3 formatos
+  6. Limite de 365 dias não documentado/validado — Adicionado `validar_periodo()`
+  7. MODALIDADES incompleto (1-14 → 1-19 códigos reais)
+  8. Feature agora tem 5 tools (era 6, removido `buscar_itens`)
 - [x] **ComprasNet Legacy descontinuado** — API original `compras.dados.gov.br` retorna 404 (descontinuada). O substituto `dadosabertos.compras.gov.br` já está implementado em `compras/dadosabertos/` com 8 tools (licitações, pregões, dispensas, contratos, fornecedores, CATMAT, CATSER, UASGs).
 - [x] **Contratos.gov.br descontinuado** — API `contratos.comprasnet.gov.br/api` retorna 404 (deprecada). Funcionalidade coberta por `compras/dadosabertos/buscar_contratos` e `compras/pncp/`.
 
@@ -171,4 +179,4 @@
 
 ---
 
-*Last updated: 2026-03-22*
+*Last updated: 2026-03-23*

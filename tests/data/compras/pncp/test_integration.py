@@ -16,7 +16,7 @@ CLIENT_MODULE = "mcp_brasil.data.compras.pncp.client"
 
 class TestToolsRegistered:
     @pytest.mark.asyncio
-    async def test_all_6_tools_registered(self) -> None:
+    async def test_all_5_tools_registered(self) -> None:
         async with Client(mcp) as c:
             tool_list = await c.list_tools()
             names = {t.name for t in tool_list}
@@ -25,7 +25,6 @@ class TestToolsRegistered:
                 "buscar_contratos",
                 "buscar_atas",
                 "consultar_fornecedor",
-                "buscar_itens",
                 "consultar_orgao",
             }
             assert expected.issubset(names), f"Missing: {expected - names}"
@@ -67,7 +66,7 @@ class TestToolExecution:
                 Contratacao(
                     orgao_nome="Ministério da Educação",
                     objeto="Aquisição de computadores",
-                    modalidade_id=1,
+                    modalidade_id=6,
                     situacao_nome="Publicada",
                     valor_estimado=500000.0,
                 ),
@@ -81,19 +80,17 @@ class TestToolExecution:
             async with Client(mcp) as c:
                 result = await c.call_tool(
                     "buscar_contratacoes",
-                    {"texto": "computadores"},
+                    {
+                        "data_inicial": "20240101",
+                        "data_final": "20240331",
+                        "modalidade": 6,
+                    },
                 )
                 assert "Aquisição de computadores" in result.data
                 assert "Ministério da Educação" in result.data
 
     @pytest.mark.asyncio
-    async def test_buscar_contratos_no_filter(self) -> None:
+    async def test_consultar_orgao_no_filter(self) -> None:
         async with Client(mcp) as c:
-            result = await c.call_tool("buscar_contratos", {})
-            assert "Informe pelo menos um filtro" in result.data
-
-    @pytest.mark.asyncio
-    async def test_buscar_atas_no_filter(self) -> None:
-        async with Client(mcp) as c:
-            result = await c.call_tool("buscar_atas", {})
+            result = await c.call_tool("consultar_orgao", {})
             assert "Informe pelo menos um filtro" in result.data

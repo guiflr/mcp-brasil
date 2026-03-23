@@ -100,25 +100,6 @@ class FornecedorResultado(BaseModel):
     fornecedores: list[Fornecedor] = []
 
 
-class ItemContratacao(BaseModel):
-    """Item de uma contratação pública."""
-
-    numero_item: int | None = None
-    descricao: str | None = None
-    quantidade: float | None = None
-    unidade_medida: str | None = None
-    valor_unitario: float | None = None
-    valor_total: float | None = None
-    situacao: str | None = None
-
-
-class ItemResultado(BaseModel):
-    """Resultado paginado de busca de itens."""
-
-    total: int = 0
-    itens: list[ItemContratacao] = []
-
-
 class OrgaoContratante(BaseModel):
     """Órgão contratante no PNCP."""
 

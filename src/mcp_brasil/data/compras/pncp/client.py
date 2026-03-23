@@ -1,14 +1,21 @@
 """HTTP client for the PNCP API.
 
-Endpoints:
-    - /contratacoes/publicacao?q=...     → buscar_contratacoes
-    - /contratos?q=...                   → buscar_contratos
-    - /contratos?dataInicial=...         → buscar_contratos_por_data
-    - /atas?q=...                        → buscar_atas
+Endpoints (verified against OpenAPI spec at /v3/api-docs):
+    - /contratacoes/publicacao  → buscar_contratacoes (requires dates + modalidade)
+    - /contratos                → buscar_contratos (requires dates)
+    - /atas                     → buscar_atas (requires dates)
+    - /fornecedores             → consultar_fornecedor
+    - /orgaos                   → consultar_orgao
+
+IMPORTANT: The PNCP API has NO text search parameter (`q`).
+All text filtering is done client-side after fetching results.
+Date format for all endpoints: YYYYMMDD.
 """
 
 from __future__ import annotations
 
+import re
+from datetime import datetime, timedelta
 from typing import Any
 
 from mcp_brasil._shared.http_client import http_get
@@ -17,9 +24,8 @@ from .constants import (
     ATAS_URL,
     CONTRATACOES_URL,
     CONTRATOS_URL,
-    DEFAULT_PAGE_SIZE,
     FORNECEDORES_URL,
-    ITENS_URL,
+    MAX_DATE_RANGE_DAYS,
     ORGAOS_URL,
 )
 from .schemas import (
@@ -31,11 +37,90 @@ from .schemas import (
     ContratoResultado,
     Fornecedor,
     FornecedorResultado,
-    ItemContratacao,
-    ItemResultado,
     OrgaoContratante,
     OrgaoResultado,
 )
+
+_DATE_RE = re.compile(r"^\d{8}$")
+
+
+def normalizar_data(data: str) -> str:
+    """Normalize a date string to YYYYMMDD format.
+
+    Accepts: YYYYMMDD, YYYY-MM-DD, DD/MM/YYYY.
+    Raises ValueError for invalid formats.
+    """
+    cleaned = data.strip()
+
+    # Already YYYYMMDD
+    if _DATE_RE.match(cleaned):
+        datetime.strptime(cleaned, "%Y%m%d")  # validate
+        return cleaned
+
+    # YYYY-MM-DD
+    if len(cleaned) == 10 and cleaned[4] == "-":
+        dt = datetime.strptime(cleaned, "%Y-%m-%d")
+        return dt.strftime("%Y%m%d")
+
+    # DD/MM/YYYY
+    if len(cleaned) == 10 and cleaned[2] == "/":
+        dt = datetime.strptime(cleaned, "%d/%m/%Y")
+        return dt.strftime("%Y%m%d")
+
+    msg = f"Formato de data inválido: '{data}'. Use YYYYMMDD, YYYY-MM-DD ou DD/MM/YYYY."
+    raise ValueError(msg)
+
+
+def validar_periodo(data_inicial: str, data_final: str) -> None:
+    """Validate that the date range does not exceed MAX_DATE_RANGE_DAYS."""
+    dt_ini = datetime.strptime(data_inicial, "%Y%m%d")
+    dt_fim = datetime.strptime(data_final, "%Y%m%d")
+    if dt_fim < dt_ini:
+        msg = f"data_final ({data_final}) é anterior a data_inicial ({data_inicial})."
+        raise ValueError(msg)
+    diff = (dt_fim - dt_ini).days
+    if diff > MAX_DATE_RANGE_DAYS:
+        msg = (
+            f"Período de {diff} dias excede o máximo de {MAX_DATE_RANGE_DAYS} dias. "
+            f"Reduza o intervalo entre data_inicial e data_final."
+        )
+        raise ValueError(msg)
+
+
+def _default_data_inicial() -> str:
+    """Return 30 days ago in YYYYMMDD format (sensible default)."""
+    return (datetime.now() - timedelta(days=30)).strftime("%Y%m%d")
+
+
+def _default_data_final() -> str:
+    """Return today in YYYYMMDD format."""
+    return datetime.now().strftime("%Y%m%d")
+
+
+def _filtrar_por_texto(items: list[dict[str, Any]], texto: str | None) -> list[dict[str, Any]]:
+    """Filter API results client-side by text match on relevant fields."""
+    if not texto:
+        return items
+    termo = texto.lower()
+    filtered = []
+    for item in items:
+        searchable = " ".join(
+            str(v).lower()
+            for v in [
+                item.get("objetoCompra"),
+                item.get("objetoContrato"),
+                item.get("objetoAta"),
+                item.get("objetoContratacao"),
+                (item.get("orgaoEntidade") or {}).get("razaoSocial"),
+                (item.get("fornecedor") or {}).get("razaoSocial"),
+                (item.get("fornecedor") or {}).get("nomeRazaoSocial"),
+                item.get("nomeRazaoSocialFornecedor"),
+            ]
+            if v
+        )
+        if termo in searchable:
+            filtered.append(item)
+    return filtered
 
 
 def _parse_contratacao(item: dict[str, Any]) -> Contratacao:
@@ -91,107 +176,149 @@ def _parse_ata(item: dict[str, Any]) -> AtaRegistroPreco:
         orgao_cnpj=orgao.get("cnpj"),
         orgao_nome=orgao.get("razaoSocial"),
         numero_ata=item.get("numeroAta") or item.get("numeroAtaRegistroPreco"),
-        objeto=item.get("objetoAta") or item.get("objetoContrato"),
+        objeto=(
+            item.get("objetoAta") or item.get("objetoContrato") or item.get("objetoContratacao")
+        ),
         fornecedor_cnpj=fornecedor.get("cnpj") or fornecedor.get("cpfCnpj"),
         fornecedor_nome=fornecedor.get("razaoSocial") or fornecedor.get("nomeRazaoSocial"),
         valor_total=item.get("valorTotal") or item.get("valorInicial"),
-        vigencia_inicio=item.get("dataVigenciaInicio"),
-        vigencia_fim=item.get("dataVigenciaFim"),
+        vigencia_inicio=item.get("dataVigenciaInicio") or item.get("vigenciaInicio"),
+        vigencia_fim=item.get("dataVigenciaFim") or item.get("vigenciaFim"),
         situacao=item.get("nomeStatus"),
     )
 
 
 async def buscar_contratacoes(
-    query: str,
+    data_inicial: str,
+    data_final: str,
+    modalidade: int,
+    *,
+    texto: str | None = None,
+    uf: str | None = None,
     cnpj_orgao: str | None = None,
-    data_inicial: str | None = None,
-    data_final: str | None = None,
+    modo_disputa: int | None = None,
     pagina: int = 1,
-    tamanho: int = DEFAULT_PAGE_SIZE,
+    tamanho: int = 10,
 ) -> ContratacaoResultado:
-    """Search published procurement processes."""
+    """Search published procurement processes.
+
+    Required by the API: dataInicial, dataFinal, codigoModalidadeContratacao.
+    Text filtering is done client-side (API has no text search).
+    """
+    data_ini = normalizar_data(data_inicial)
+    data_fim = normalizar_data(data_final)
+    validar_periodo(data_ini, data_fim)
+
     params: dict[str, str] = {
-        "q": query,
+        "dataInicial": data_ini,
+        "dataFinal": data_fim,
+        "codigoModalidadeContratacao": str(modalidade),
         "pagina": str(pagina),
-        "tamanhoPagina": str(tamanho),
+        "tamanhoPagina": str(min(tamanho, 50)),
     }
+    if uf:
+        params["uf"] = uf
     if cnpj_orgao:
-        params["cnpjOrgao"] = cnpj_orgao
-    if data_inicial:
-        params["dataInicial"] = data_inicial
-    if data_final:
-        params["dataFinal"] = data_final
+        params["cnpj"] = cnpj_orgao
+    if modo_disputa:
+        params["codigoModoDisputa"] = str(modo_disputa)
 
     data: dict[str, Any] = await http_get(CONTRATACOES_URL, params=params)
     items = data.get("data", data.get("resultado", []))
-    contratacoes = [_parse_contratacao(item) for item in items] if isinstance(items, list) else []
+    if not isinstance(items, list):
+        items = []
+
+    # Client-side text filtering
+    items = _filtrar_por_texto(items, texto)
+
+    contratacoes = [_parse_contratacao(item) for item in items]
     return ContratacaoResultado(
-        total=data.get("totalRegistros", data.get("count", len(contratacoes))),
+        total=len(contratacoes) if texto else data.get("totalRegistros", len(contratacoes)),
         contratacoes=contratacoes,
     )
 
 
 async def buscar_contratos(
-    query: str | None = None,
-    cnpj_fornecedor: str | None = None,
+    data_inicial: str,
+    data_final: str,
+    *,
+    texto: str | None = None,
     cnpj_orgao: str | None = None,
-    data_inicial: str | None = None,
-    data_final: str | None = None,
     pagina: int = 1,
-    tamanho: int = DEFAULT_PAGE_SIZE,
+    tamanho: int = 10,
 ) -> ContratoResultado:
-    """Search public contracts."""
+    """Search public contracts.
+
+    Required by the API: dataInicial, dataFinal.
+    Text filtering is done client-side (API has no text search).
+    """
+    data_ini = normalizar_data(data_inicial)
+    data_fim = normalizar_data(data_final)
+    validar_periodo(data_ini, data_fim)
+
     params: dict[str, str] = {
+        "dataInicial": data_ini,
+        "dataFinal": data_fim,
         "pagina": str(pagina),
-        "tamanhoPagina": str(tamanho),
+        "tamanhoPagina": str(min(tamanho, 500)),
     }
-    if query:
-        params["q"] = query
-    if cnpj_fornecedor:
-        params["cnpjFornecedor"] = cnpj_fornecedor
     if cnpj_orgao:
         params["cnpjOrgao"] = cnpj_orgao
-    if data_inicial:
-        params["dataInicial"] = data_inicial
-    if data_final:
-        params["dataFinal"] = data_final
 
     data: dict[str, Any] = await http_get(CONTRATOS_URL, params=params)
     items = data.get("data", data.get("resultado", []))
-    contratos = [_parse_contrato(item) for item in items] if isinstance(items, list) else []
+    if not isinstance(items, list):
+        items = []
+
+    # Client-side text filtering
+    items = _filtrar_por_texto(items, texto)
+
+    contratos = [_parse_contrato(item) for item in items]
     return ContratoResultado(
-        total=data.get("totalRegistros", data.get("count", len(contratos))),
+        total=len(contratos) if texto else data.get("totalRegistros", len(contratos)),
         contratos=contratos,
     )
 
 
 async def buscar_atas(
-    query: str | None = None,
+    data_inicial: str,
+    data_final: str,
+    *,
+    texto: str | None = None,
     cnpj_orgao: str | None = None,
-    data_inicial: str | None = None,
-    data_final: str | None = None,
     pagina: int = 1,
-    tamanho: int = DEFAULT_PAGE_SIZE,
+    tamanho: int = 10,
 ) -> AtaResultado:
-    """Search price record minutes (atas de registro de preço)."""
+    """Search price record minutes (atas de registro de preço).
+
+    Required by the API: dataInicial, dataFinal.
+    Filters by validity period (vigência), not publication date.
+    Text filtering is done client-side (API has no text search).
+    """
+    data_ini = normalizar_data(data_inicial)
+    data_fim = normalizar_data(data_final)
+    validar_periodo(data_ini, data_fim)
+
     params: dict[str, str] = {
+        "dataInicial": data_ini,
+        "dataFinal": data_fim,
         "pagina": str(pagina),
-        "tamanhoPagina": str(tamanho),
+        "tamanhoPagina": str(min(tamanho, 500)),
     }
-    if query:
-        params["q"] = query
     if cnpj_orgao:
-        params["cnpjOrgao"] = cnpj_orgao
-    if data_inicial:
-        params["dataInicial"] = data_inicial
-    if data_final:
-        params["dataFinal"] = data_final
+        params["cnpj"] = cnpj_orgao
 
     data: dict[str, Any] = await http_get(ATAS_URL, params=params)
     items = data.get("data", data.get("resultado", []))
-    atas = [_parse_ata(item) for item in items] if isinstance(items, list) else []
+    if not isinstance(items, list):
+        items = []
+
+    # Client-side text filtering
+    items = _filtrar_por_texto(items, texto)
+
+    atas = [_parse_ata(item) for item in items]
     return AtaResultado(
-        total=data.get("totalRegistros", data.get("count", len(atas))),
+        total=len(atas) if texto else data.get("totalRegistros", len(atas)),
         atas=atas,
     )
 
@@ -214,19 +341,6 @@ def _parse_fornecedor(item: dict[str, Any]) -> Fornecedor:
         ),
         porte=item.get("porte") or item.get("porteEmpresa"),
         data_abertura=item.get("dataAbertura"),
-    )
-
-
-def _parse_item(item: dict[str, Any]) -> ItemContratacao:
-    """Parse a raw API response item into an ItemContratacao model."""
-    return ItemContratacao(
-        numero_item=item.get("numeroItem"),
-        descricao=item.get("descricao") or item.get("materialServico"),
-        quantidade=item.get("quantidade"),
-        unidade_medida=item.get("unidadeMedida"),
-        valor_unitario=item.get("valorUnitarioEstimado"),
-        valor_total=item.get("valorTotal"),
-        situacao=item.get("situacaoCompraItemNome"),
     )
 
 
@@ -254,32 +368,11 @@ async def consultar_fornecedor(cnpj: str) -> FornecedorResultado:
     )
 
 
-async def buscar_itens(
-    query: str | None = None,
-    cnpj_orgao: str | None = None,
-    pagina: int = 1,
-    tamanho: int = DEFAULT_PAGE_SIZE,
-) -> ItemResultado:
-    """Search procurement items."""
-    params: dict[str, str] = {"pagina": str(pagina), "tamanhoPagina": str(tamanho)}
-    if query:
-        params["q"] = query
-    if cnpj_orgao:
-        params["cnpjOrgao"] = cnpj_orgao
-    data: dict[str, Any] = await http_get(ITENS_URL, params=params)
-    items = data.get("data", data.get("resultado", []))
-    itens = [_parse_item(item) for item in items] if isinstance(items, list) else []
-    return ItemResultado(
-        total=data.get("totalRegistros", data.get("count", len(itens))),
-        itens=itens,
-    )
-
-
 async def consultar_orgao(
     query: str | None = None,
     uf: str | None = None,
     pagina: int = 1,
-    tamanho: int = DEFAULT_PAGE_SIZE,
+    tamanho: int = 10,
 ) -> OrgaoResultado:
     """Search contracting bodies."""
     params: dict[str, str] = {"pagina": str(pagina), "tamanhoPagina": str(tamanho)}

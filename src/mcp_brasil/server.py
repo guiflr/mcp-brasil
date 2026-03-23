@@ -13,7 +13,7 @@ import logging
 import time
 
 import mcp.types as mt
-from fastmcp import FastMCP
+from fastmcp import Context, FastMCP
 from fastmcp.prompts import PromptResult
 from fastmcp.resources import ResourceResult
 from fastmcp.server.middleware import CallNext, Middleware, MiddlewareContext
@@ -21,6 +21,7 @@ from fastmcp.tools import ToolResult
 
 from ._shared.feature import FeatureRegistry
 from ._shared.lifespan import http_lifespan
+from .settings import TOOL_SEARCH
 
 logging.basicConfig(
     level=logging.INFO,
@@ -87,7 +88,7 @@ logger.info("\n%s", registry.summary())
 
 
 # Expose a meta-tool for introspection
-@mcp.tool
+@mcp.tool(tags={"meta", "discovery"})
 def listar_features() -> str:
     """Lista todas as features (APIs) disponíveis no mcp-brasil.
 
@@ -98,6 +99,60 @@ def listar_features() -> str:
         Resumo das features ativas com descrição e status de autenticação.
     """
     return registry.summary()
+
+
+# Expose an LLM-powered recommendation tool
+@mcp.tool(tags={"meta", "discovery"})
+async def recomendar_tools(query: str, ctx: Context) -> str:
+    """Recomenda tools relevantes a partir de uma pergunta em linguagem natural.
+
+    Usa IA para entender sua intenção e sugerir as tools mais adequadas
+    do mcp-brasil, explicando quando e como usar cada uma.
+
+    Args:
+        query: Pergunta ou descrição do que você precisa
+               (ex: "quero dados sobre gastos do governo federal").
+    """
+    from ._shared.discovery import build_catalog, recomendar_tools_impl
+
+    await ctx.info(f"Buscando recomendações para: {query}")
+    catalog = build_catalog(registry)
+    return await recomendar_tools_impl(query, catalog)
+
+
+# ---------------------------------------------------------------------------
+# Tool Search Transform — configurable via MCP_BRASIL_TOOL_SEARCH
+# ---------------------------------------------------------------------------
+_always_visible = ["listar_features", "recomendar_tools"]
+
+if TOOL_SEARCH == "bm25":
+    from fastmcp.server.transforms.search import BM25SearchTransform
+
+    mcp.add_transform(
+        BM25SearchTransform(
+            max_results=10,
+            always_visible=_always_visible,
+        )
+    )
+    logger.info("Tool search: BM25 (search_tools + call_tool)")
+
+elif TOOL_SEARCH == "code_mode":
+    from fastmcp.experimental.transforms.code_mode import (
+        CodeMode,
+        GetSchemas,
+        GetTags,
+        Search,
+    )
+
+    mcp.add_transform(
+        CodeMode(
+            discovery_tools=[GetTags(name="get_tags"), Search(name="search"), GetSchemas()],
+        )
+    )
+    logger.info("Tool search: CodeMode (experimental)")
+
+else:
+    logger.info("Tool search: none (all %d+ tools visible)", len(registry.features))
 
 
 if __name__ == "__main__":

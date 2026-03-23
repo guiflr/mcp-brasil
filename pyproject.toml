@@ -25,6 +25,9 @@ dependencies = [
     "python-dotenv>=1.0",
 ]
 
+[project.optional-dependencies]
+llm = ["anthropic>=0.40"]
+
 [dependency-groups]
 dev = [
     "pytest>=8.0",

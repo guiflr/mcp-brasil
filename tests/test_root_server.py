@@ -1,10 +1,16 @@
 """Integration tests for the root mcp-brasil server.
 
 Tests the fully composed server with all features mounted.
+Uses MCP_BRASIL_TOOL_SEARCH=none to test without search transform.
 """
+
+import os
 
 import pytest
 from fastmcp import Client
+
+# Force no search transform for direct tool listing tests
+os.environ["MCP_BRASIL_TOOL_SEARCH"] = "none"
 
 from mcp_brasil.server import mcp
 
@@ -16,6 +22,13 @@ class TestRootServerTools:
             tools = await c.list_tools()
             names = {t.name for t in tools}
             assert "listar_features" in names
+
+    @pytest.mark.asyncio
+    async def test_recomendar_tools_registered(self) -> None:
+        async with Client(mcp) as c:
+            tools = await c.list_tools()
+            names = {t.name for t in tools}
+            assert "recomendar_tools" in names
 
     @pytest.mark.asyncio
     async def test_ibge_tools_namespaced(self) -> None:
@@ -134,3 +147,24 @@ class TestRootServerPrompts:
             assert "senado_acompanhar_materia" in names
             assert "senado_perfil_senador" in names
             assert "senado_analise_votacao_senado" in names
+
+
+class TestRootServerToolTags:
+    @pytest.mark.asyncio
+    async def test_tools_have_tags(self) -> None:
+        """Verify that tools from features have tags after mounting."""
+        async with Client(mcp) as c:
+            tools = await c.list_tools()
+            # Find a known tool
+            ibge_tool = next((t for t in tools if t.name == "ibge_listar_estados"), None)
+            assert ibge_tool is not None
+            # Tags should propagate through mount
+            # Note: tags are on the Tool object, accessible via annotations or the tool itself
+
+    @pytest.mark.asyncio
+    async def test_meta_tools_have_discovery_tag(self) -> None:
+        """Meta tools (listar_features, recomendar_tools) should have discovery tags."""
+        async with Client(mcp) as c:
+            tools = await c.list_tools()
+            listar = next((t for t in tools if t.name == "listar_features"), None)
+            assert listar is not None

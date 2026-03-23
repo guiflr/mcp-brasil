@@ -58,6 +58,8 @@ Para adicionar uma feature: crie o diretorio seguindo a convencao. Zero mudancas
 
 ### 2. Anatomia de uma Feature
 
+![Feature Anatomy](img/feature_anatomy.png)
+
 Cada feature e uma pasta auto-contida com estrutura fixa:
 
 ```
@@ -123,6 +125,8 @@ O server filtra as 205 tools para mostrar apenas as relevantes ao contexto do LL
 | `none` | Todas as 205 tools visiveis (sem filtragem) |
 
 ## Fluxo de dados
+
+![Data Flow](img/data_flow.png)
 
 ```
 Pergunta do usuario

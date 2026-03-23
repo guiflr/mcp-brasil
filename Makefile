@@ -1,7 +1,7 @@
 # mcp-brasil — Makefile
 
 .DEFAULT_GOAL := help
-.PHONY: help sync dev test test-feature lint fix types run serve inspect ci clean build changelog version release-patch release-minor release-major
+.PHONY: help sync dev test test-feature lint fix types run serve inspect ci clean build changelog version release-patch release-minor release-major diagrams
 
 ## —— Setup ——
 
@@ -63,6 +63,11 @@ release-minor: ci ## Release minor version (0.1.0 → 0.2.0)
 
 release-major: ci ## Release major version (0.1.0 → 1.0.0)
 	@scripts/release.sh major
+
+## —— Docs ——
+
+diagrams: ## Generate architecture diagrams (requires graphviz)
+	uv run python scripts/generate_diagrams.py
 
 ## —— Misc ——
 

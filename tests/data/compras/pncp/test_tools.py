@@ -1,4 +1,4 @@
-"""Tests for the Compras tool functions.
+"""Tests for the PNCP tool functions.
 
 Tools are tested by mocking client functions (never HTTP).
 Context is mocked via MagicMock with async methods.
@@ -8,8 +8,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from mcp_brasil.data.compras import tools
-from mcp_brasil.data.compras.schemas import (
+from mcp_brasil.data.compras.pncp import tools
+from mcp_brasil.data.compras.pncp.schemas import (
     AtaRegistroPreco,
     AtaResultado,
     Contratacao,
@@ -24,7 +24,7 @@ from mcp_brasil.data.compras.schemas import (
     OrgaoResultado,
 )
 
-CLIENT_MODULE = "mcp_brasil.data.compras.client"
+CLIENT_MODULE = "mcp_brasil.data.compras.pncp.client"
 
 
 def _mock_ctx() -> MagicMock:

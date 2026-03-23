@@ -1,4 +1,4 @@
-"""Integration tests for the Compras feature using fastmcp.Client.
+"""Integration tests for the PNCP sub-feature using fastmcp.Client.
 
 These tests verify the full pipeline: server -> tools -> client (mocked HTTP).
 """
@@ -8,10 +8,10 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastmcp import Client
 
-from mcp_brasil.data.compras.schemas import Contratacao, ContratacaoResultado
-from mcp_brasil.data.compras.server import mcp
+from mcp_brasil.data.compras.pncp.schemas import Contratacao, ContratacaoResultado
+from mcp_brasil.data.compras.pncp.server import mcp
 
-CLIENT_MODULE = "mcp_brasil.data.compras.client"
+CLIENT_MODULE = "mcp_brasil.data.compras.pncp.client"
 
 
 class TestToolsRegistered:

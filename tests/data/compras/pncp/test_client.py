@@ -1,11 +1,11 @@
-"""Tests for the Compras HTTP client."""
+"""Tests for the PNCP HTTP client."""
 
 import httpx
 import pytest
 import respx
 
-from mcp_brasil.data.compras import client
-from mcp_brasil.data.compras.constants import (
+from mcp_brasil.data.compras.pncp import client
+from mcp_brasil.data.compras.pncp.constants import (
     ATAS_URL,
     CONTRATACOES_URL,
     CONTRATOS_URL,

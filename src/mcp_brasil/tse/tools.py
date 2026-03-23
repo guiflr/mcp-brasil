@@ -7,7 +7,7 @@ Rules (ADR-001):
 
 from __future__ import annotations
 
-from mcp_brasil._shared.formatting import format_brl, markdown_table
+from mcp_brasil._shared.formatting import format_brl, format_number_br, markdown_table
 
 from . import client
 
@@ -208,6 +208,12 @@ async def buscar_candidato(
         f"**Situação do candidato:** {cand.situacao_candidato or '—'}",
     ]
 
+    # Totalização
+    if cand.descricao_totalizacao:
+        lines.append(f"**Resultado:** {cand.descricao_totalizacao}")
+    if cand.total_votos is not None:
+        lines.append(f"**Total de votos:** {format_number_br(cand.total_votos, 0)}")
+
     # Dados pessoais
     lines.append("\n**Dados pessoais:**")
     lines.append(f"  Sexo: {cand.sexo or '—'}")
@@ -231,6 +237,47 @@ async def buscar_candidato(
         lines.append("**Motivo Ficha Limpa aplicado**")
 
     return "\n".join(lines)
+
+
+async def resultado_eleicao(
+    ano: int,
+    municipio: int,
+    eleicao_id: int,
+    cargo: int,
+) -> str:
+    """Mostra o resultado de uma eleição com candidatos rankeados por votos.
+
+    Retorna a totalização de votos para todos os candidatos de um cargo
+    em um município, ordenados do mais votado ao menos votado.
+
+    Args:
+        ano: Ano da eleição (ex: 2020, 2022).
+        municipio: Código do município.
+        eleicao_id: ID da eleição.
+        cargo: Código do cargo (ex: 11=Prefeito, 13=Vereador).
+
+    Returns:
+        Tabela com ranking de candidatos por votos.
+    """
+    resultados = await client.resultado_eleicao(ano, municipio, eleicao_id, cargo)
+    if not resultados:
+        return "Nenhum resultado encontrado para os filtros informados."
+
+    rows = [
+        (
+            str(i),
+            (r.nome_urna or "—")[:30],
+            str(r.numero or "—"),
+            r.partido or "—",
+            format_number_br(r.total_votos, 0) if r.total_votos is not None else "—",
+            r.percentual or "—",
+            (r.descricao_totalizacao or "—")[:20],
+        )
+        for i, r in enumerate(resultados, 1)
+    ]
+    return f"Resultado da eleição ({len(resultados)} candidatos):\n\n" + markdown_table(
+        ["#", "Nome", "Nº", "Partido", "Votos", "%", "Resultado"], rows
+    )
 
 
 async def consultar_prestacao_contas(

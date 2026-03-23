@@ -19,6 +19,7 @@ from .schemas import (
     Cargo,
     Eleicao,
     PrestaContas,
+    ResultadoCandidato,
 )
 
 logger = logging.getLogger(__name__)
@@ -129,6 +130,8 @@ def _parse_candidato(raw: dict[str, Any]) -> Candidato:
         situacao_candidato=raw.get("descricaoSituacaoCandidato"),
         coligacao=raw.get("nomeColigacao"),
         composicao_coligacao=raw.get("composicaoColigacao"),
+        descricao_totalizacao=raw.get("descricaoTotalizacao"),
+        total_votos=_safe_int(raw.get("totalVotos")),
         gasto_campanha=_safe_float(raw.get("gastoCampanha")),
         total_bens=_safe_float(raw.get("totalDeBens")),
         emails=emails if isinstance(emails, list) else [],
@@ -136,6 +139,20 @@ def _parse_candidato(raw: dict[str, Any]) -> Candidato:
         foto_url=raw.get("fotoUrl"),
         candidato_inapto=raw.get("isCandidatoInapto"),
         motivo_ficha_limpa=raw.get("st_MOTIVO_FICHA_LIMPA"),
+    )
+
+
+def _parse_resultado_candidato(raw: dict[str, Any]) -> ResultadoCandidato:
+    partido_raw = raw.get("partido", {})
+    partido = partido_raw.get("sigla") if isinstance(partido_raw, dict) else partido_raw
+
+    return ResultadoCandidato(
+        nome_urna=raw.get("nomeUrna"),
+        numero=_safe_int(raw.get("numero")),
+        partido=partido if isinstance(partido, str) else None,
+        total_votos=_safe_int(raw.get("totalVotos")),
+        percentual=raw.get("percentual"),
+        descricao_totalizacao=raw.get("descricaoTotalizacao"),
     )
 
 
@@ -229,6 +246,22 @@ async def buscar_candidato(
     if isinstance(data, dict) and data.get("id"):
         return _parse_candidato(data)
     return None
+
+
+async def resultado_eleicao(
+    ano: int,
+    municipio: int,
+    eleicao_id: int,
+    cargo: int,
+) -> list[ResultadoCandidato]:
+    """Get election results ranked by votes for a position in a municipality."""
+    url = f"{CANDIDATURA_URL}/listar/{ano}/{municipio}/{eleicao_id}/{cargo}/candidatos"
+    data = await _get(url)
+    if isinstance(data, dict):
+        cands_raw = data.get("candidatos", [])
+        resultados = [_parse_resultado_candidato(c) for c in _safe_list(cands_raw, "resultado")]
+        return sorted(resultados, key=lambda r: r.total_votos or 0, reverse=True)
+    return []
 
 
 async def consultar_prestacao_contas(

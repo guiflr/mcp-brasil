@@ -63,6 +63,8 @@ class Candidato(BaseModel):
     situacao_candidato: str | None = None
     coligacao: str | None = None
     composicao_coligacao: str | None = None
+    descricao_totalizacao: str | None = None
+    total_votos: int | None = None
     gasto_campanha: float | None = None
     total_bens: float | None = None
     emails: list[str] | None = None
@@ -70,6 +72,17 @@ class Candidato(BaseModel):
     foto_url: str | None = None
     candidato_inapto: bool | None = None
     motivo_ficha_limpa: bool | None = None
+
+
+class ResultadoCandidato(BaseModel):
+    """Candidato com resultado eleitoral (totalização de votos)."""
+
+    nome_urna: str | None = None
+    numero: int | None = None
+    partido: str | None = None
+    total_votos: int | None = None
+    percentual: str | None = None
+    descricao_totalizacao: str | None = None
 
 
 class BemCandidato(BaseModel):

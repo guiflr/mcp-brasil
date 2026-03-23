@@ -66,7 +66,7 @@
 - [x] **REST API without CORS** — TSE DivulgaCandContas API blocks browser requests but works fine with httpx. No auth required.
 - [x] **Nested response shapes** — Candidatos endpoint wraps results in `{"candidatos": [...]}`, cargos in `{"cargos": [...]}`. Handled by extracting nested fields.
 - [ ] **API is unofficial** — DivulgaCandContas API is reverse-engineered. No official documentation. Endpoints may change without notice.
-- [ ] **No result totalization** — TSE API returns election results (votos) but `buscar_candidato` only shows `descricaoTotalizacao`. A dedicated tool for election results could be added.
+- [x] **No result totalization** — Resolvido. Adicionada tool `resultado_eleicao` que rankeia candidatos por votos. `buscar_candidato` enriquecido com `descricao_totalizacao` e `total_votos`. Novo modelo `ResultadoCandidato`. 47 testes passam.
 
 ## Jurisprudência Feature
 

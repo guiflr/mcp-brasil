@@ -196,6 +196,75 @@ class TestBuscarCandidato:
         assert result is None
 
 
+class TestResultadoEleicao:
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_returns_ranked_results(self) -> None:
+        url = f"{CANDIDATURA_URL}/listar/2020/35157/2030402020/11/candidatos"
+        respx.get(url).mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "candidatos": [
+                        {
+                            "nomeUrna": "CANDIDATO B",
+                            "numero": 15,
+                            "partido": {"sigla": "MDB"},
+                            "totalVotos": 5000,
+                            "percentual": "30,00%",
+                            "descricaoTotalizacao": "Não eleito",
+                        },
+                        {
+                            "nomeUrna": "CANDIDATO A",
+                            "numero": 44,
+                            "partido": {"sigla": "PT"},
+                            "totalVotos": 10000,
+                            "percentual": "60,00%",
+                            "descricaoTotalizacao": "Eleito",
+                        },
+                    ]
+                },
+            )
+        )
+        result = await client.resultado_eleicao(2020, 35157, 2030402020, 11)
+        assert len(result) == 2
+        assert result[0].nome_urna == "CANDIDATO A"
+        assert result[0].total_votos == 10000
+        assert result[1].nome_urna == "CANDIDATO B"
+        assert result[1].total_votos == 5000
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_empty(self) -> None:
+        url = f"{CANDIDATURA_URL}/listar/2020/999/999/11/candidatos"
+        respx.get(url).mock(return_value=httpx.Response(200, json={"candidatos": []}))
+        result = await client.resultado_eleicao(2020, 999, 999, 11)
+        assert result == []
+
+
+class TestBuscarCandidatoEnriched:
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_includes_totalizacao(self) -> None:
+        url = f"{CANDIDATURA_URL}/buscar/2020/35157/2030402020/candidato/123"
+        respx.get(url).mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "id": 123,
+                    "nomeUrna": "CANDIDATO X",
+                    "partido": {"sigla": "PT"},
+                    "descricaoTotalizacao": "Eleito",
+                    "totalVotos": 25000,
+                },
+            )
+        )
+        result = await client.buscar_candidato(2020, 35157, 2030402020, 123)
+        assert result is not None
+        assert result.descricao_totalizacao == "Eleito"
+        assert result.total_votos == 25000
+
+
 class TestConsultarPrestacaoContas:
     @pytest.mark.asyncio
     @respx.mock
@@ -247,6 +316,16 @@ class TestParserEdgeCases:
     def test_candidato_resumo_partido_dict(self) -> None:
         result = client._parse_candidato_resumo({"partido": {"sigla": "PL"}})
         assert result.partido == "PL"
+
+    def test_resultado_candidato_empty(self) -> None:
+        result = client._parse_resultado_candidato({})
+        assert result.nome_urna is None
+        assert result.total_votos is None
+        assert result.partido is None
+
+    def test_resultado_candidato_partido_string(self) -> None:
+        result = client._parse_resultado_candidato({"partido": "PSOL"})
+        assert result.partido == "PSOL"
 
     def test_presta_contas_empty(self) -> None:
         result = client._parse_presta_contas({})

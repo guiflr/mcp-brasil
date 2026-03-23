@@ -14,6 +14,7 @@ from mcp_brasil.tse.schemas import (
     Cargo,
     Eleicao,
     PrestaContas,
+    ResultadoCandidato,
 )
 
 MODULE = "mcp_brasil.tse.client"
@@ -187,6 +188,59 @@ class TestBuscarCandidato:
         with patch(f"{MODULE}.buscar_candidato", new_callable=AsyncMock, return_value=None):
             result = await tools.buscar_candidato(2020, 999, 999, 999)
         assert "não encontrado" in result
+
+
+class TestBuscarCandidatoTotalizacao:
+    @pytest.mark.asyncio
+    async def test_shows_totalizacao(self) -> None:
+        mock_data = Candidato(
+            id=123,
+            nome_urna="CANDIDATO X",
+            partido="PT",
+            situacao="Deferido",
+            descricao_totalizacao="Eleito",
+            total_votos=25000,
+        )
+        with patch(f"{MODULE}.buscar_candidato", new_callable=AsyncMock, return_value=mock_data):
+            result = await tools.buscar_candidato(2020, 35157, 2030402020, 123)
+        assert "Eleito" in result
+        assert "25.000" in result
+
+
+class TestResultadoEleicao:
+    @pytest.mark.asyncio
+    async def test_formats_ranked_table(self) -> None:
+        mock_data = [
+            ResultadoCandidato(
+                nome_urna="CANDIDATO A",
+                numero=44,
+                partido="PT",
+                total_votos=10000,
+                percentual="60,00%",
+                descricao_totalizacao="Eleito",
+            ),
+            ResultadoCandidato(
+                nome_urna="CANDIDATO B",
+                numero=15,
+                partido="MDB",
+                total_votos=5000,
+                percentual="30,00%",
+                descricao_totalizacao="Não eleito",
+            ),
+        ]
+        with patch(f"{MODULE}.resultado_eleicao", new_callable=AsyncMock, return_value=mock_data):
+            result = await tools.resultado_eleicao(2020, 35157, 2030402020, 11)
+        assert "CANDIDATO A" in result
+        assert "CANDIDATO B" in result
+        assert "10.000" in result
+        assert "60,00%" in result
+        assert "Eleito" in result
+
+    @pytest.mark.asyncio
+    async def test_empty(self) -> None:
+        with patch(f"{MODULE}.resultado_eleicao", new_callable=AsyncMock, return_value=[]):
+            result = await tools.resultado_eleicao(2020, 999, 999, 11)
+        assert "Nenhum resultado" in result
 
 
 class TestConsultarPrestacaoContas:

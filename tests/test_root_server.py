@@ -1,16 +1,11 @@
 """Integration tests for the root mcp-brasil server.
 
 Tests the fully composed server with all features mounted.
-Uses MCP_BRASIL_TOOL_SEARCH=none to test without search transform.
+MCP_BRASIL_TOOL_SEARCH=none is set in conftest.py (before any import).
 """
-
-import os
 
 import pytest
 from fastmcp import Client
-
-# Force no search transform for direct tool listing tests
-os.environ["MCP_BRASIL_TOOL_SEARCH"] = "none"
 
 from mcp_brasil.server import mcp
 

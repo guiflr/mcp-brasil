@@ -1,11 +1,11 @@
 """Tests for tool discovery features (BM25 search, recomendar_tools, tags).
 
 Tests search transforms, LLM-powered recommendations, and tag propagation.
+MCP_BRASIL_TOOL_SEARCH=none is set in conftest.py (before any import).
 """
 
 from __future__ import annotations
 
-import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -224,8 +224,7 @@ class TestBM25SearchTransform:
 class TestToolSearchConfig:
     @pytest.mark.asyncio
     async def test_none_mode_shows_all_tools(self) -> None:
-        """With TOOL_SEARCH=none, all tools should be visible."""
-        os.environ["MCP_BRASIL_TOOL_SEARCH"] = "none"
+        """With TOOL_SEARCH=none (set in conftest.py), all tools should be visible."""
         from mcp_brasil.server import mcp as root_mcp
 
         async with Client(root_mcp) as c:

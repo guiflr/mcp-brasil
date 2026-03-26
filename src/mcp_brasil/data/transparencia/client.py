@@ -105,8 +105,21 @@ def _clean_cpf_cnpj(valor: str) -> str:
 
 async def _get(url: str, params: dict[str, Any] | None = None) -> Any:
     """Make an authenticated GET request to the Portal da Transparência API."""
+    from mcp_brasil.exceptions import HttpClientError
+
     async with _rate_limiter:
-        return await http_get(url, params=params, headers=_auth_headers())
+        try:
+            return await http_get(url, params=params, headers=_auth_headers())
+        except HttpClientError as exc:
+            msg = str(exc)
+            if "403" in msg:
+                logger.warning(
+                    "Acesso negado (HTTP 403) para %s — verifique permissões da "
+                    "chave API (TRANSPARENCIA_API_KEY). Alguns endpoints exigem "
+                    "permissões adicionais.",
+                    url,
+                )
+            raise
 
 
 def _safe_parse_list(
@@ -308,19 +321,30 @@ async def consultar_despesas(
 async def buscar_servidores(
     cpf: str | None = None,
     nome: str | None = None,
+    codigo_orgao_lotacao: str | None = None,
+    codigo_orgao_exercicio: str | None = None,
     pagina: int = 1,
 ) -> list[Servidor]:
-    """Busca servidores públicos federais por CPF ou nome.
+    """Busca servidores públicos federais.
+
+    A API exige pelo menos um filtro obrigatório: CPF, código de órgão de
+    lotação ou código de órgão de exercício.
 
     Args:
-        cpf: CPF do servidor (opcional se nome fornecido).
-        nome: Nome do servidor (opcional se CPF fornecido).
+        cpf: CPF do servidor.
+        nome: Nome do servidor (usado como filtro adicional).
+        codigo_orgao_lotacao: Código SIAPE do órgão de lotação.
+        codigo_orgao_exercicio: Código SIAPE do órgão de exercício.
         pagina: Número da página.
     """
     params: dict[str, Any] = {"pagina": pagina}
     if cpf:
         params["cpf"] = _clean_cpf_cnpj(cpf)
-    elif nome:
+    if codigo_orgao_lotacao:
+        params["orgaoServidorLotacao"] = codigo_orgao_lotacao
+    if codigo_orgao_exercicio:
+        params["orgaoServidorExercicio"] = codigo_orgao_exercicio
+    if nome:
         params["nome"] = nome
     data = await _get(SERVIDORES_URL, params)
     return _safe_parse_list(data, _parse_servidor, "servidores")
@@ -633,6 +657,9 @@ def _parse_servidor_detalhe(raw: dict[str, Any]) -> ServidorDetalhe:
         funcao=raw.get("funcao"),
         remuneracao_basica=raw.get("remuneracaoBasicaBruta"),
         remuneracao_apos_deducoes=raw.get("remuneracaoAposDeducoesObrigatorias"),
+        honorarios=raw.get("honorariosAdvocaticios") or raw.get("honorarios"),
+        outras_remuneracoes=raw.get("outrasRemuneracoesEventuais"),
+        jetons=raw.get("jepiRemuneracao") or raw.get("jetons"),
     )
 
 

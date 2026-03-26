@@ -103,11 +103,25 @@ async def buscar_trechos(
 
 async def buscar_cidades(nome_cidade: str) -> list[CidadeQueridoDiario]:
     """Search cities available in Querido Diário by name."""
-    data: list[dict[str, Any]] = await http_get(CITIES_URL, params={"city_name": nome_cidade})
+    try:
+        data: list[dict[str, Any]] = await http_get(CITIES_URL, params={"city_name": nome_cidade})
+    except (HttpClientError, Exception) as exc:
+        logger.warning("Querido Diário API error searching cities '%s': %s", nome_cidade, exc)
+        return []
+
+    if not data or not isinstance(data, list):
+        return []
     return [CidadeQueridoDiario(**c) for c in data]
 
 
 async def listar_cidades() -> list[CidadeQueridoDiario]:
     """List all cities available in Querido Diário."""
-    data: list[dict[str, Any]] = await http_get(CITIES_URL)
+    try:
+        data: list[dict[str, Any]] = await http_get(CITIES_URL)
+    except (HttpClientError, Exception) as exc:
+        logger.warning("Querido Diário API error listing cities: %s", exc)
+        return []
+
+    if not data or not isinstance(data, list):
+        return []
     return [CidadeQueridoDiario(**c) for c in data]

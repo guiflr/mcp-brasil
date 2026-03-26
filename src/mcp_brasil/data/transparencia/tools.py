@@ -8,6 +8,7 @@ Rules (ADR-001):
 from __future__ import annotations
 
 from mcp_brasil._shared.formatting import format_brl, markdown_table, truncate_list
+from mcp_brasil.exceptions import HttpClientError
 
 from . import client
 from .constants import DEFAULT_PAGE_SIZE
@@ -101,25 +102,43 @@ async def consultar_despesas(
 async def buscar_servidores(
     cpf: str | None = None,
     nome: str | None = None,
+    codigo_orgao_lotacao: str | None = None,
+    codigo_orgao_exercicio: str | None = None,
     pagina: int = 1,
 ) -> str:
-    """Busca servidores públicos federais por CPF ou nome.
+    """Busca servidores públicos federais por CPF, nome ou órgão.
 
     Consulta a base de servidores do Portal da Transparência.
-    Informe CPF ou nome (pelo menos um é obrigatório).
+    A API exige pelo menos um: CPF, código de órgão de lotação ou código de
+    órgão de exercício. O nome sozinho não é aceito pela API — combine com
+    código de órgão para buscar por nome.
 
     Args:
-        cpf: CPF do servidor (opcional se nome fornecido).
-        nome: Nome do servidor (opcional se CPF fornecido).
+        cpf: CPF do servidor (opcional).
+        nome: Nome do servidor (opcional, requer código de órgão junto).
+        codigo_orgao_lotacao: Código SIAPE do órgão de lotação (ex: "3" para AGU,
+            "26246" para UFPI). Permite buscar todos os servidores de um órgão.
+        codigo_orgao_exercicio: Código SIAPE do órgão de exercício (alternativo
+            ao código de lotação).
         pagina: Página de resultados (padrão: 1).
 
     Returns:
         Tabela com servidores encontrados.
     """
-    if not cpf and not nome:
-        return "Informe CPF ou nome do servidor para a busca."
+    if not cpf and not codigo_orgao_lotacao and not codigo_orgao_exercicio:
+        return (
+            "Informe CPF ou código de órgão (lotação ou exercício) para a busca. "
+            "A API exige pelo menos um desses filtros. "
+            "Exemplos de códigos SIAPE: '3' (AGU), '26246' (UFPI), '25000' (MEC)."
+        )
 
-    servidores = await client.buscar_servidores(cpf=cpf, nome=nome, pagina=pagina)
+    servidores = await client.buscar_servidores(
+        cpf=cpf,
+        nome=nome,
+        codigo_orgao_lotacao=codigo_orgao_lotacao,
+        codigo_orgao_exercicio=codigo_orgao_exercicio,
+        pagina=pagina,
+    )
     if not servidores:
         busca = cpf or nome
         return f"Nenhum servidor encontrado para '{busca}'."
@@ -689,7 +708,16 @@ async def consultar_cnpj(cnpj: str, pagina: int = 1) -> str:
     Returns:
         Informações sobre vínculos encontrados.
     """
-    vinculos = await client.consultar_cnpj(cnpj, pagina)
+    try:
+        vinculos = await client.consultar_cnpj(cnpj, pagina)
+    except HttpClientError as exc:
+        if "403" in str(exc):
+            return (
+                f"Acesso negado ao consultar CNPJ '{cnpj}'. "
+                "A chave API pode não ter permissão para o endpoint de pessoas jurídicas. "
+                "Verifique as permissões em portaldatransparencia.gov.br."
+            )
+        return f"Erro ao consultar CNPJ '{cnpj}': {exc}"
     if not vinculos:
         return f"Nenhum vínculo encontrado para o CNPJ '{cnpj}'."
 
@@ -765,11 +793,19 @@ async def detalhar_servidor(id_servidor: int) -> str:
         f"- **Função:** {servidor.funcao or '—'}",
         f"- **Remuneração Básica:** "
         f"{format_brl(servidor.remuneracao_basica) if servidor.remuneracao_basica else '—'}",
+    ]
+    if servidor.honorarios:
+        lines.append(f"- **Honorários Advocatícios:** {format_brl(servidor.honorarios)}")
+    if servidor.outras_remuneracoes:
+        lines.append(f"- **Outras Remunerações:** {format_brl(servidor.outras_remuneracoes)}")
+    if servidor.jetons:
+        lines.append(f"- **Jetons:** {format_brl(servidor.jetons)}")
+    lines.append(
         "- **Remuneração Líquida:** "
         + (
             format_brl(servidor.remuneracao_apos_deducoes)
             if servidor.remuneracao_apos_deducoes
             else "—"
-        ),
-    ]
+        )
+    )
     return "\n".join(lines)

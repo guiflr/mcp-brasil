@@ -236,3 +236,6 @@ class ServidorDetalhe(BaseModel):
     funcao: str | None = None
     remuneracao_basica: float | None = None
     remuneracao_apos_deducoes: float | None = None
+    honorarios: float | None = None
+    outras_remuneracoes: float | None = None
+    jetons: float | None = None

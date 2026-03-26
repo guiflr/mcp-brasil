@@ -109,7 +109,10 @@ class TestToolExecution:
             return_value=mock_data,
         ):
             async with Client(mcp) as c:
-                result = await c.call_tool("buscar_servidores", {"nome": "Servidor E2E"})
+                result = await c.call_tool(
+                    "buscar_servidores",
+                    {"nome": "Servidor E2E", "codigo_orgao_lotacao": "3"},
+                )
                 assert "Servidor E2E" in result.data
 
     @pytest.mark.asyncio
@@ -136,4 +139,4 @@ class TestToolExecution:
         """Tool should return validation message without hitting client."""
         async with Client(mcp) as c:
             result = await c.call_tool("buscar_servidores", {})
-            assert "Informe CPF ou nome" in result.data
+            assert "Informe CPF ou código de órgão" in result.data

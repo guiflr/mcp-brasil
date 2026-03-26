@@ -122,12 +122,12 @@ class TestBuscarServidores:
     @pytest.mark.asyncio
     async def test_no_params(self) -> None:
         result = await tools.buscar_servidores()
-        assert "Informe CPF ou nome" in result
+        assert "Informe CPF ou código de órgão" in result
 
     @pytest.mark.asyncio
     async def test_empty(self) -> None:
         with patch(f"{MODULE}.buscar_servidores", new_callable=AsyncMock, return_value=[]):
-            result = await tools.buscar_servidores(nome="Fulano")
+            result = await tools.buscar_servidores(codigo_orgao_lotacao="3")
         assert "Nenhum servidor" in result
 
 
@@ -369,7 +369,7 @@ class TestPaginationHints:
     async def test_servidores_hint(self) -> None:
         data = [Servidor(nome="Test")] * DEFAULT_PAGE_SIZE
         with patch(f"{MODULE}.buscar_servidores", new_callable=AsyncMock, return_value=data):
-            result = await tools.buscar_servidores(nome="Test")
+            result = await tools.buscar_servidores(cpf="12345678900")
         assert "pagina=2" in result
 
     @pytest.mark.asyncio

@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from mcp_brasil._shared.http_client import http_get
+from mcp_brasil.exceptions import HttpClientError
 
 from .constants import CONJUNTOS_URL, DEFAULT_PAGE_SIZE, ORGANIZACOES_URL, RECURSOS_URL
 from .schemas import (
@@ -15,6 +17,8 @@ from .schemas import (
     RecursoDados,
     RecursoResultado,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _parse_conjunto(item: dict[str, Any]) -> ConjuntoDados:
@@ -75,7 +79,15 @@ async def buscar_conjuntos(
         "pagina": str(pagina),
         "tamanhoPagina": str(tamanho),
     }
-    data: dict[str, Any] = await http_get(CONJUNTOS_URL, params=params)
+    try:
+        data: dict[str, Any] = await http_get(CONJUNTOS_URL, params=params)
+    except (HttpClientError, Exception) as exc:
+        logger.warning("Dados Abertos API error for '%s': %s", query, exc)
+        return ConjuntoResultado(total=0, conjuntos=[])
+
+    if not data or not isinstance(data, dict):
+        return ConjuntoResultado(total=0, conjuntos=[])
+
     items = data.get("registros", [])
     conjuntos = [_parse_conjunto(i) for i in items] if isinstance(items, list) else []
     return ConjuntoResultado(
@@ -94,8 +106,12 @@ async def detalhar_conjunto(conjunto_id: str) -> ConjuntoDados | None:
         Dataset details or None if not found.
     """
     url = f"{CONJUNTOS_URL}/{conjunto_id}"
-    data: dict[str, Any] = await http_get(url)
-    if not data:
+    try:
+        data: dict[str, Any] = await http_get(url)
+    except (HttpClientError, Exception) as exc:
+        logger.warning("Dados Abertos API error for dataset '%s': %s", conjunto_id, exc)
+        return None
+    if not data or not isinstance(data, dict):
         return None
     return _parse_conjunto(data)
 
@@ -117,7 +133,15 @@ async def listar_organizacoes(
         "pagina": str(pagina),
         "tamanhoPagina": str(tamanho),
     }
-    data: dict[str, Any] = await http_get(ORGANIZACOES_URL, params=params)
+    try:
+        data: dict[str, Any] = await http_get(ORGANIZACOES_URL, params=params)
+    except (HttpClientError, Exception) as exc:
+        logger.warning("Dados Abertos API error listing orgs: %s", exc)
+        return OrganizacaoResultado(total=0, organizacoes=[])
+
+    if not data or not isinstance(data, dict):
+        return OrganizacaoResultado(total=0, organizacoes=[])
+
     items = data.get("registros", [])
     orgs = [_parse_organizacao(i) for i in items] if isinstance(items, list) else []
     return OrganizacaoResultado(
@@ -146,7 +170,15 @@ async def buscar_recursos(
         "pagina": str(pagina),
         "tamanhoPagina": str(tamanho),
     }
-    data: dict[str, Any] = await http_get(RECURSOS_URL, params=params)
+    try:
+        data: dict[str, Any] = await http_get(RECURSOS_URL, params=params)
+    except (HttpClientError, Exception) as exc:
+        logger.warning("Dados Abertos API error for resources '%s': %s", conjunto_id, exc)
+        return RecursoResultado(total=0, recursos=[])
+
+    if not data or not isinstance(data, dict):
+        return RecursoResultado(total=0, recursos=[])
+
     items = data.get("registros", [])
     recursos = [_parse_recurso(i) for i in items] if isinstance(items, list) else []
     return RecursoResultado(

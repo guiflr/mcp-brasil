@@ -65,7 +65,10 @@ class TestExecuteBatch:
     @pytest.mark.asyncio
     async def test_calls_tool_with_ctx(self) -> None:
         """Should pass ctx to tools that accept it."""
-        mock_fn = AsyncMock(return_value="resultado ok")
+
+        async def _spec(ctx: object, param: str) -> str: ...
+
+        mock_fn = AsyncMock(spec=_spec, return_value="resultado ok")
         batch._dispatch["test_tool"] = mock_fn
 
         ctx = _mock_ctx()

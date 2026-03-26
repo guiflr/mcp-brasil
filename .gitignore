@@ -8,6 +8,10 @@ build/
 # Virtual environment
 .venv/
 
+plan/
+CLAUDE.md
+AGENTS.md
+
 # Caches
 .pytest_cache/
 .mypy_cache/

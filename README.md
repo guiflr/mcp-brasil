@@ -1,12 +1,12 @@
 <div align="center">
 
-# mcp-brasil 🇧🇷
+<img src="docs/assets/logo.png" alt="mcp-brasil logo" width="100">
+
+# mcp-brasil
 
 **MCP Server para 27 APIs públicas brasileiras**
 
-[![PyPI](https://img.shields.io/pypi/v/mcp-brasil)](https://pypi.org/project/mcp-brasil/)
-[![Python](https://img.shields.io/pypi/pyversions/mcp-brasil)](https://pypi.org/project/mcp-brasil/)
-[![CI](https://img.shields.io/github/actions/workflow/status/jxnxts/mcp-brasil/ci.yml)](https://github.com/jxnxts/mcp-brasil/actions)
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 204 tools · 58 resources · 47 prompts

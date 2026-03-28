@@ -2,6 +2,51 @@
 
 Todas as mudanças notáveis do mcp-brasil estão documentadas neste arquivo.
 
+## [0.7.0] - 2026-03-28
+
+### Bug Fixes
+
+- **compras:** Handle nested API format and list responses in contratosgovbr
+- **tcu:** Handle None sumario in mypy strict mode
+- **imunizacao:** Fix mypy strict errors with proper Any typing
+
+### Documentation
+
+- Update README and docs with new features and tool counts
+
+### Features
+
+- **saude:** Add 6 new CNES tools for urgency, type search, detail, coordinates, municipal summary and comparison
+- **farmacia_popular:** Add feature with 6 tools, resources and prompts
+- **compras:** Add contratosgovbr submodule
+- **anvisa:** Add bulario tools for medication search, bulas and categories
+- **tcu:** Add certidoes, pautas and solicitations tools
+- **tcu:** Add all 8 tools with full test coverage
+- **rename:** Add RENAME essential medicines catalog with 5 tools
+- **bndes:** Add CKAN integration with 4 tools for financing data
+- **opendatasus:** Add CNES health facility tools
+- **opendatasus:** Add OpenDataSUS CKAN API with 5 tools
+- **tcu:** Add search filters to consultar_acordaos
+- **denasus:** Add DENASUS audit scraping with 5 tools
+- **anvisa:** Add 5 new tools (category, generics, registry, company, summary)
+- **bps:** Add BPS health pricing tools
+- **farmacia_popular:** Add municipios_atendidos and farmacia_mais_proxima tools
+- **opendatasus:** Add consultar_vacinacao and consultar_srag dedicated tools
+- **tcu:** Add consultar_pautas_sessao tool
+- **imunizacao:** Add PNI vaccination feature with 10 tools
+- **diario_oficial:** Add DOU federal, unified search, and fix QD bugs
+- **diario_oficial:** Add listar_diarios_recentes tool and orgaos_federais_dou resource
+- **pncp:** Add 9 new tools covering all PNCP API endpoints
+- **forum_seguranca:** Add public safety publications feature via DSpace API
+
+### Refactoring
+
+- **tcu:** Simplify schemas, client and tools
+
+### Styling
+
+- **compras:** Apply ruff formatting
+
 ## [0.6.0] - 2026-03-28
 
 ### Bug Fixes

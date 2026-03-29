@@ -55,7 +55,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-llm = ["anthropic>=0.40"]
+llm = ["anthropic>=0.40", "google-genai>=1.0"]
 code-mode = ["fastmcp[code-mode]"]
 
 [dependency-groups]

@@ -26,3 +26,7 @@ TOOL_SEARCH: str = os.environ.get("MCP_BRASIL_TOOL_SEARCH", "bm25")
 
 # --- LLM Discovery (recomendar_tools) ---
 ANTHROPIC_API_KEY: str = os.environ.get("ANTHROPIC_API_KEY", "")
+GEMINI_API_KEY: str = os.environ.get("GEMINI_API_KEY", "")
+GEMINI_MODEL: str = os.environ.get("MCP_BRASIL_GEMINI_MODEL", "gemini-2.5-flash")
+# auto: usa GEMINI se disponível, senão Anthropic
+LLM_PROVIDER: str = os.environ.get("MCP_BRASIL_LLM_PROVIDER", "auto")

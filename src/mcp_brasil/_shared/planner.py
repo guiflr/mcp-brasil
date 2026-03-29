@@ -1,20 +1,33 @@
 """LLM-powered query planner for mcp-brasil.
 
-Uses the Anthropic API (claude-haiku-4-5) to analyze user queries and build
+Uses Gemini or Anthropic to analyze user queries and build
 structured execution plans with ordered steps, tool assignments, parameters,
 and dependency information between steps.
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 
 from pydantic import BaseModel
 
-from ..settings import ANTHROPIC_API_KEY
+from ..settings import ANTHROPIC_API_KEY, GEMINI_API_KEY, GEMINI_MODEL, LLM_PROVIDER
 
 logger = logging.getLogger("mcp-brasil.planner")
+
+def _select_provider() -> str:
+    provider = (LLM_PROVIDER or "auto").lower().strip()
+    if provider in {"gemini", "google"}:
+        return "gemini"
+    if provider in {"anthropic", "claude"}:
+        return "anthropic"
+    if GEMINI_API_KEY:
+        return "gemini"
+    if ANTHROPIC_API_KEY:
+        return "anthropic"
+    return "none"
 
 
 class EtapaPlano(BaseModel):
@@ -224,9 +237,8 @@ Transparencia requer TRANSPARENCIA_API_KEY."
 {catalog}
 """
 
-
 async def planejar_consulta_impl(query: str, catalog: str) -> str:
-    """Call Anthropic API to build a structured execution plan.
+    """Call LLM API to build a structured execution plan.
 
     Args:
         query: Natural language question from the user.
@@ -235,44 +247,94 @@ async def planejar_consulta_impl(query: str, catalog: str) -> str:
     Returns:
         Markdown-rendered execution plan or error message.
     """
-    try:
-        import anthropic
-    except ImportError:
-        return (
-            "Erro: O pacote 'anthropic' não está instalado. "
-            "Instale com: pip install 'mcp-brasil[llm]'\n\n"
-            "Alternativa: use a tool 'search_tools' para buscar por palavras-chave."
-        )
-
-    api_key = ANTHROPIC_API_KEY
-    if not api_key:
-        return (
-            "Erro: ANTHROPIC_API_KEY não configurada. "
-            "Defina a variável de ambiente ANTHROPIC_API_KEY para usar esta tool.\n\n"
-            "Alternativa: use a tool 'search_tools' para buscar por palavras-chave."
-        )
-
-    client = anthropic.AsyncAnthropic(api_key=api_key)
+    provider = _select_provider()
     system_prompt = _SYSTEM_PROMPT.format(catalog=catalog)
 
-    try:
-        response = await client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=2048,
-            system=system_prompt,
-            messages=[{"role": "user", "content": query}],
-        )
-        block = response.content[0]
-        raw_text = str(getattr(block, "text", ""))
-
-        # Try to parse as structured plan
+    if provider == "gemini":
         try:
-            plano = PlanoConsulta.model_validate(json.loads(raw_text))
-            return plano.to_markdown()
-        except (json.JSONDecodeError, Exception):
-            logger.warning("Failed to parse plan as JSON, returning raw text")
-            return raw_text
+            from google import genai
+        except ImportError:
+            return (
+                "Erro: O pacote 'google-genai' não está instalado. "
+                "Instale com: pip install 'mcp-brasil[llm]'\n\n"
+                "Alternativa: use a tool 'search_tools' para buscar por palavras-chave."
+            )
 
-    except Exception as e:
-        logger.error("Erro ao chamar Anthropic API: %s", e)
-        return f"Erro ao consultar IA: {e}\n\nUse 'search_tools' como alternativa."
+        api_key = GEMINI_API_KEY
+        if not api_key:
+            return (
+                "Erro: GEMINI_API_KEY não configurada. "
+                "Defina a variável de ambiente GEMINI_API_KEY para usar esta tool.\n\n"
+                "Alternativa: use a tool 'search_tools' para buscar por palavras-chave."
+            )
+
+        try:
+            client = genai.Client(api_key=api_key)
+            prompt = f"{system_prompt}\n\nPergunta do usuário: {query}"
+            response = await asyncio.to_thread(
+                client.models.generate_content,
+                model=GEMINI_MODEL,
+                contents=prompt,
+            )
+            raw_text = str(getattr(response, "text", "") or "")
+
+            # Try to parse as structured plan
+            try:
+                plano = PlanoConsulta.model_validate(json.loads(raw_text))
+                return plano.to_markdown()
+            except (json.JSONDecodeError, Exception):
+                logger.warning("Failed to parse plan as JSON, returning raw text")
+                return raw_text
+
+        except Exception as e:
+            logger.error("Erro ao chamar Gemini API: %s", e)
+            return f"Erro ao consultar IA: {e}\n\nUse 'search_tools' como alternativa."
+
+    if provider == "anthropic":
+        try:
+            import anthropic
+        except ImportError:
+            return (
+                "Erro: O pacote 'anthropic' não está instalado. "
+                "Instale com: pip install 'mcp-brasil[llm]'\n\n"
+                "Alternativa: use a tool 'search_tools' para buscar por palavras-chave."
+            )
+
+        api_key = ANTHROPIC_API_KEY
+        if not api_key:
+            return (
+                "Erro: ANTHROPIC_API_KEY não configurada. "
+                "Defina a variável de ambiente ANTHROPIC_API_KEY para usar esta tool.\n\n"
+                "Alternativa: use a tool 'search_tools' para buscar por palavras-chave."
+            )
+
+        client = anthropic.AsyncAnthropic(api_key=api_key)
+
+        try:
+            response = await client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=2048,
+                system=system_prompt,
+                messages=[{"role": "user", "content": query}],
+            )
+            block = response.content[0]
+            raw_text = str(getattr(block, "text", ""))
+
+            # Try to parse as structured plan
+            try:
+                plano = PlanoConsulta.model_validate(json.loads(raw_text))
+                return plano.to_markdown()
+            except (json.JSONDecodeError, Exception):
+                logger.warning("Failed to parse plan as JSON, returning raw text")
+                return raw_text
+
+        except Exception as e:
+            logger.error("Erro ao chamar Anthropic API: %s", e)
+            return f"Erro ao consultar IA: {e}\n\nUse 'search_tools' como alternativa."
+
+    return (
+        "Erro: Nenhum provedor de LLM configurado. "
+        "Defina GEMINI_API_KEY ou ANTHROPIC_API_KEY para usar esta tool.\n\n"
+        "Alternativa: use a tool 'search_tools' para buscar por palavras-chave."
+    )
+

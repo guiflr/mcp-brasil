@@ -1,19 +1,33 @@
 """LLM-powered tool recommendation for mcp-brasil.
 
-Uses the Anthropic API (claude-haiku-4-5) to understand user intent
+Uses Gemini or Anthropic to understand user intent
 and recommend the most relevant tools from the mcp-brasil catalog.
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
 
-from ..settings import ANTHROPIC_API_KEY
+from ..settings import ANTHROPIC_API_KEY, GEMINI_API_KEY, GEMINI_MODEL, LLM_PROVIDER
 
 logger = logging.getLogger("mcp-brasil.discovery")
 
 # Catalog is built once and cached at module level
 _catalog_cache: str = ""
+
+
+def _select_provider() -> str:
+    provider = (LLM_PROVIDER or "auto").lower().strip()
+    if provider in {"gemini", "google"}:
+        return "gemini"
+    if provider in {"anthropic", "claude"}:
+        return "anthropic"
+    if GEMINI_API_KEY:
+        return "gemini"
+    if ANTHROPIC_API_KEY:
+        return "anthropic"
+    return "none"
 
 
 def _format_tool_signature(feature_name: str, tool_name: str, tool: object) -> str:
@@ -83,7 +97,7 @@ def build_catalog(registry: object) -> str:
 
 
 async def recomendar_tools_impl(query: str, catalog: str) -> str:
-    """Call Anthropic API to recommend tools based on user query.
+    """Call LLM API to recommend tools based on user query.
 
     Args:
         query: Natural language question from the user.
@@ -92,25 +106,7 @@ async def recomendar_tools_impl(query: str, catalog: str) -> str:
     Returns:
         LLM-generated recommendations with explanations.
     """
-    try:
-        import anthropic
-    except ImportError:
-        return (
-            "Erro: O pacote 'anthropic' não está instalado. "
-            "Instale com: pip install 'mcp-brasil[llm]'\n\n"
-            "Alternativa: use a tool 'search_tools' para buscar por palavras-chave."
-        )
-
-    api_key = ANTHROPIC_API_KEY
-    if not api_key:
-        return (
-            "Erro: ANTHROPIC_API_KEY não configurada. "
-            "Defina a variável de ambiente ANTHROPIC_API_KEY para usar esta tool.\n\n"
-            "Alternativa: use a tool 'search_tools' para buscar por palavras-chave."
-        )
-
-    client = anthropic.AsyncAnthropic(api_key=api_key)
-
+    provider = _select_provider()
     system_prompt = (
         "Você é um assistente que recomenda tools do mcp-brasil. "
         "Dado o catálogo de tools disponíveis e a pergunta do usuário, "
@@ -122,15 +118,73 @@ async def recomendar_tools_impl(query: str, catalog: str) -> str:
         f"## Catálogo de Tools\n{catalog}"
     )
 
-    try:
-        response = await client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=1024,
-            system=system_prompt,
-            messages=[{"role": "user", "content": query}],
-        )
-        block = response.content[0]
-        return str(getattr(block, "text", ""))
-    except Exception as e:
-        logger.error("Erro ao chamar Anthropic API: %s", e)
-        return f"Erro ao consultar IA: {e}\n\nUse 'search_tools' como alternativa."
+    if provider == "gemini":
+        try:
+            from google import genai
+        except ImportError:
+            return (
+                "Erro: O pacote 'google-genai' não está instalado. "
+                "Instale com: pip install 'mcp-brasil[llm]'\n\n"
+                "Alternativa: use a tool 'search_tools' para buscar por palavras-chave."
+            )
+
+        api_key = GEMINI_API_KEY
+        if not api_key:
+            return (
+                "Erro: GEMINI_API_KEY não configurada. "
+                "Defina a variável de ambiente GEMINI_API_KEY para usar esta tool.\n\n"
+                "Alternativa: use a tool 'search_tools' para buscar por palavras-chave."
+            )
+
+        try:
+            client = genai.Client(api_key=api_key)
+            prompt = f"{system_prompt}\n\nPergunta do usuário: {query}"
+            response = await asyncio.to_thread(
+                client.models.generate_content,
+                model=GEMINI_MODEL,
+                contents=prompt,
+            )
+            return str(getattr(response, "text", "") or "")
+        except Exception as e:
+            logger.error("Erro ao chamar Gemini API: %s", e)
+            return f"Erro ao consultar IA: {e}\n\nUse 'search_tools' como alternativa."
+
+    if provider == "anthropic":
+        try:
+            import anthropic
+        except ImportError:
+            return (
+                "Erro: O pacote 'anthropic' não está instalado. "
+                "Instale com: pip install 'mcp-brasil[llm]'\n\n"
+                "Alternativa: use a tool 'search_tools' para buscar por palavras-chave."
+            )
+
+        api_key = ANTHROPIC_API_KEY
+        if not api_key:
+            return (
+                "Erro: ANTHROPIC_API_KEY não configurada. "
+                "Defina a variável de ambiente ANTHROPIC_API_KEY para usar esta tool.\n\n"
+                "Alternativa: use a tool 'search_tools' para buscar por palavras-chave."
+            )
+
+        client = anthropic.AsyncAnthropic(api_key=api_key)
+
+        try:
+            response = await client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=1024,
+                system=system_prompt,
+                messages=[{"role": "user", "content": query}],
+            )
+            block = response.content[0]
+            return str(getattr(block, "text", ""))
+        except Exception as e:
+            logger.error("Erro ao chamar Anthropic API: %s", e)
+            return f"Erro ao consultar IA: {e}\n\nUse 'search_tools' como alternativa."
+
+    return (
+        "Erro: Nenhum provedor de LLM configurado. "
+        "Defina GEMINI_API_KEY ou ANTHROPIC_API_KEY para usar esta tool.\n\n"
+        "Alternativa: use a tool 'search_tools' para buscar por palavras-chave."
+    )
+

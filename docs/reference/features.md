@@ -1,6 +1,6 @@
 # Catalogo de Features
 
-27 features · 205 tools · 58 resources · 47 prompts
+41 features · 326 tools · 58 resources · 47 prompts
 
 ---
 
@@ -46,9 +46,24 @@ Selic, IPCA, cambio, PIB, +190 series do SGS, Boletim Focus.
 
 ---
 
+### `bndes` — BNDES (4 tools)
+
+Dados abertos do BNDES: operacoes de financiamento, exportacao, desembolsos, instituicoes credenciadas e datasets via CKAN API.
+
+| Tool | Descricao |
+|------|-----------|
+| `bndes_buscar_datasets_bndes` | Busca datasets no portal de dados abertos do BNDES |
+| `bndes_detalhar_dataset_bndes` | Detalha um dataset do BNDES com seus recursos |
+| `bndes_consultar_operacoes_bndes` | Consulta operacoes de financiamento do BNDES |
+| `bndes_listar_instituicoes_bndes` | Lista instituicoes financeiras credenciadas pelo BNDES |
+
+**Chave:** Nenhuma
+
+---
+
 ## Legislativo
 
-### `camara` — Camara dos Deputados (10 tools)
+### `camara` — Camara dos Deputados (11 tools)
 
 Deputados, proposicoes, votacoes, despesas, comissoes, frentes parlamentares.
 
@@ -57,6 +72,7 @@ Deputados, proposicoes, votacoes, despesas, comissoes, frentes parlamentares.
 | `camara_listar_deputados` | Lista deputados com filtros (nome, partido, UF) |
 | `camara_buscar_deputado` | Detalhes de um deputado por ID |
 | `camara_buscar_proposicao` | Projetos de lei por tipo, ano, tema, autor |
+| `camara_detalhar_proposicao` | Detalhes completos de uma proposicao por ID |
 | `camara_consultar_tramitacao` | Historico de tramitacao de uma proposicao |
 | `camara_buscar_votacao` | Sessoes de votacao |
 | `camara_votos_nominais` | Votos nominais (como cada deputado votou) |
@@ -122,26 +138,43 @@ Contratos federais, despesas, servidores, sancoes, bolsa familia, emendas, viage
 
 ---
 
-### `tcu` — Tribunal de Contas da Uniao (8 tools)
+### `tcu` — Tribunal de Contas da Uniao (9 tools)
 
-Acordaos, licitantes inabilitados/inidoneos, certidoes APF, debitos, contratos.
+Acordaos, licitantes inabilitados/inidoneos, certidoes APF, debitos, contratos, pautas de sessao.
 
 | Tool | Descricao |
 |------|-----------|
-| `tcu_buscar_acordaos` | Acordaos do TCU |
+| `tcu_consultar_acordaos` | Acordaos do TCU com filtros de busca |
 | `tcu_consultar_inabilitados` | Pessoas inabilitadas |
 | `tcu_consultar_inidoneos` | Empresas inidoneas |
-| `tcu_consultar_certidoes_apf` | Certidoes APF (TCU + CNJ + CGU) |
-| `tcu_calcular_debito_tcu` | Correcao de debito via SELIC |
-| `tcu_buscar_pedidos_congresso` | Pedidos do Congresso ao TCU |
-| `tcu_buscar_contratos_tcu` | Contratos do TCU |
+| `tcu_consultar_certidoes` | Certidoes APF (TCU + CNJ + CGU) |
+| `tcu_calcular_debito` | Correcao de debito via SELIC |
+| `tcu_consultar_pedidos_congresso` | Pedidos do Congresso ao TCU |
+| `tcu_consultar_termos_contratuais` | Contratos do TCU |
+| `tcu_consultar_pautas_sessao` | Pautas de sessoes de julgamento |
 | `tcu_consultar_cadirreg` | Registro de irregularidades (CADIRREG) |
 
 **Chave:** Nenhuma
 
 ---
 
-### Tribunais de Contas Estaduais (9 features)
+### `transferegov` — TransfereGov (5 tools)
+
+Emendas parlamentares PIX (transferencias especiais).
+
+| Tool | Descricao |
+|------|-----------|
+| `transferegov_buscar_emendas_pix` | Emendas PIX por ano/estado |
+| `transferegov_buscar_emenda_por_autor` | Emendas por nome do parlamentar |
+| `transferegov_detalhe_emenda` | Detalhes por ID do plano de acao |
+| `transferegov_emendas_por_municipio` | Emendas para um municipio |
+| `transferegov_resumo_emendas_ano` | Resumo anual de emendas PIX |
+
+**Chave:** Nenhuma
+
+---
+
+### Tribunais de Contas Estaduais (10 features)
 
 | Feature | UF | Tools | Cobertura |
 |---------|-----|-------|-----------|
@@ -154,6 +187,7 @@ Acordaos, licitantes inabilitados/inidoneos, certidoes APF, debitos, contratos.
 | `tce_rn` | Rio Grande do Norte | 5 | Jurisdicionados, licitacoes, contratos |
 | `tce_pi` | Piaui | 5 | Prefeituras, despesas, receitas |
 | `tce_to` | Tocantins | 3 | Processos, pautas de sessoes |
+| `tce_es` | Espirito Santo | 4 | Licitacoes, contratos, contratacoes, obras |
 
 **Chave:** Nenhuma (todas)
 
@@ -224,6 +258,23 @@ Eleicoes, candidatos, resultados, prestacao de contas, apuracao.
 
 ---
 
+### `anuncios_eleitorais` — Biblioteca de Anuncios da Meta (6 tools)
+
+Busca e analise de anuncios eleitorais e sobre temas sociais, eleicoes ou politica veiculados no Brasil via Meta Ad Library API.
+
+| Tool | Descricao |
+|------|-----------|
+| `anuncios_eleitorais_buscar_anuncios_eleitorais` | Busca anuncios eleitorais e politicos por termos |
+| `anuncios_eleitorais_buscar_anuncios_por_pagina` | Anuncios de paginas especificas do Facebook |
+| `anuncios_eleitorais_buscar_anuncios_por_financiador` | Anuncios pelo nome do financiador |
+| `anuncios_eleitorais_buscar_anuncios_por_regiao` | Anuncios com alcance em uma regiao/estado |
+| `anuncios_eleitorais_analisar_demografia_anuncios` | Distribuicao demografica e regional dos anuncios |
+| `anuncios_eleitorais_buscar_anuncios_frase_exata` | Busca por frase exata |
+
+**Chave:** Obrigatoria — `META_ACCESS_TOKEN` ([cadastro Meta for Developers](https://developers.facebook.com/))
+
+---
+
 ## Ambiental
 
 ### `inpe` — INPE (4 tools)
@@ -255,11 +306,29 @@ Estacoes hidrologicas, telemetria (chuva, vazao, nivel), reservatorios.
 
 ---
 
+### `tabua_mares` — Tabua de Mares (7 tools)
+
+Previsao de mares para portos do litoral brasileiro.
+
+| Tool | Descricao |
+|------|-----------|
+| `tabua_mares_listar_estados_costeiros` | 17 estados costeiros com portos disponiveis |
+| `tabua_mares_listar_portos` | Portos disponiveis em um estado costeiro |
+| `tabua_mares_buscar_portos` | Informacoes detalhadas de portos pelo ID |
+| `tabua_mares_consultar_tabua_mare` | Tabua de mares de um porto para dias especificos |
+| `tabua_mares_porto_mais_proximo` | Porto mais proximo de uma coordenada em um estado |
+| `tabua_mares_porto_mais_proximo_geral` | Porto mais proximo independente do estado |
+| `tabua_mares_tabua_mare_por_geolocalizacao` | Tabua de mares do porto mais proximo via coordenadas |
+
+**Chave:** Nenhuma
+
+---
+
 ## Saude
 
-### `saude` — CNES / DataSUS (4 tools)
+### `saude` — CNES / DataSUS (10 tools)
 
-Estabelecimentos de saude, profissionais, leitos.
+Estabelecimentos de saude, profissionais, leitos, urgencias, tipos, coordenadas, resumo municipal e comparacao.
 
 | Tool | Descricao |
 |------|-----------|
@@ -267,6 +336,137 @@ Estabelecimentos de saude, profissionais, leitos.
 | `saude_buscar_profissionais` | Profissionais de saude |
 | `saude_listar_tipos_estabelecimento` | Tipos de estabelecimento |
 | `saude_consultar_leitos` | Disponibilidade de leitos |
+| `saude_buscar_urgencias` | Unidades de urgencia e emergencia |
+| `saude_buscar_por_tipo` | Estabelecimentos por tipo especifico |
+| `saude_buscar_estabelecimento_por_cnes` | Detalhes de um estabelecimento pelo CNES |
+| `saude_buscar_por_coordenadas` | Estabelecimentos proximos a uma coordenada |
+| `saude_resumo_rede_municipal` | Resumo da rede de saude de um municipio |
+| `saude_comparar_municipios` | Comparacao de redes de saude entre municipios |
+
+**Chave:** Nenhuma
+
+---
+
+### `anvisa` — ANVISA (10 tools)
+
+Bulario eletronico, bulas, categorias regulatorias, genericos, principios ativos, registros e empresas.
+
+| Tool | Descricao |
+|------|-----------|
+| `anvisa_buscar_medicamento` | Busca medicamentos no Bulario Eletronico |
+| `anvisa_buscar_por_principio_ativo` | Busca por principio ativo |
+| `anvisa_consultar_bula` | Bulas de um medicamento por numero de processo |
+| `anvisa_listar_categorias` | Categorias regulatorias (generico, similar, referencia) |
+| `anvisa_informacoes_bula` | Secoes padrao de uma bula no Brasil |
+| `anvisa_buscar_por_categoria` | Medicamentos por categoria regulatoria |
+| `anvisa_buscar_genericos` | Medicamentos genericos |
+| `anvisa_verificar_registro` | Registro de medicamento na ANVISA |
+| `anvisa_buscar_por_empresa` | Medicamentos de uma empresa especifica |
+| `anvisa_resumo_regulatorio` | Resumo regulatorio de um medicamento |
+
+**Chave:** Nenhuma
+
+---
+
+### `farmacia_popular` — Farmacia Popular (8 tools)
+
+Medicamentos gratuitos, farmacias credenciadas, indicacoes terapeuticas, elegibilidade.
+
+| Tool | Descricao |
+|------|-----------|
+| `farmacia_popular_buscar_farmacias` | Farmacias credenciadas por municipio/UF |
+| `farmacia_popular_listar_medicamentos` | Medicamentos disponiveis no programa |
+| `farmacia_popular_verificar_medicamento` | Verifica se um medicamento esta no programa |
+| `farmacia_popular_buscar_por_indicacao` | Medicamentos por indicacao terapeutica |
+| `farmacia_popular_estatisticas_programa` | Estatisticas consolidadas do programa |
+| `farmacia_popular_verificar_elegibilidade` | Requisitos para retirar medicamentos |
+| `farmacia_popular_municipios_atendidos` | Municipios com farmacias credenciadas |
+| `farmacia_popular_farmacia_mais_proxima` | Farmacia mais proxima por coordenadas |
+
+**Chave:** Nenhuma
+
+---
+
+### `rename` — RENAME (5 tools)
+
+Relacao Nacional de Medicamentos Essenciais do SUS — medicamentos por nome, principio ativo ou grupo terapeutico.
+
+| Tool | Descricao |
+|------|-----------|
+| `rename_listar_grupos_terapeuticos` | Grupos terapeuticos da RENAME |
+| `rename_buscar_medicamento_rename` | Busca medicamentos no catalogo RENAME |
+| `rename_buscar_por_principio_ativo_rename` | Busca por principio ativo |
+| `rename_detalhar_medicamento_rename` | Detalhes de um medicamento |
+| `rename_estatisticas_rename` | Estatisticas consolidadas da RENAME |
+
+**Chave:** Nenhuma
+
+---
+
+### `bps` — Banco de Precos em Saude (3 tools)
+
+Precos de medicamentos e dispositivos medicos comprados pelo governo em todas as esferas.
+
+| Tool | Descricao |
+|------|-----------|
+| `bps_consultar_precos_saude` | Compras registradas no BPS |
+| `bps_buscar_medicamento_bps` | Precos de medicamentos por descricao |
+| `bps_buscar_catmat_bps` | Precos por codigo CATMAT |
+
+**Chave:** Nenhuma
+
+---
+
+### `opendatasus` — OpenDataSUS (7 tools)
+
+Portal de dados abertos do SUS via CKAN API — hospitais, leitos, vacinacao, SRAG, qualidade da agua.
+
+| Tool | Descricao |
+|------|-----------|
+| `opendatasus_buscar_datasets` | Busca datasets no OpenDataSUS |
+| `opendatasus_detalhar_dataset` | Detalhes de um dataset |
+| `opendatasus_consultar_datastore` | Registros de um recurso DataStore |
+| `opendatasus_listar_datasets_conhecidos` | Datasets mais importantes do OpenDataSUS |
+| `opendatasus_buscar_com_filtro` | Busca com filtros avancados |
+| `opendatasus_consultar_vacinacao` | Dados de vacinacao |
+| `opendatasus_consultar_srag` | Dados de SRAG (sindrome respiratoria aguda grave) |
+
+**Chave:** Nenhuma
+
+---
+
+### `imunizacao` — PNI / Programa Nacional de Imunizacoes (10 tools)
+
+Registros de vacinacao, calendario nacional, vacinas do SUS, metas de cobertura vacinal.
+
+| Tool | Descricao |
+|------|-----------|
+| `imunizacao_buscar_vacinacao` | Busca registros de vacinacao |
+| `imunizacao_estatisticas_por_vacina` | Estatisticas por tipo de vacina |
+| `imunizacao_estatisticas_por_faixa_etaria` | Estatisticas por faixa etaria |
+| `imunizacao_buscar_datasets_pni` | Datasets do PNI no OpenDataSUS |
+| `imunizacao_consultar_doses_dataset` | Dados de um dataset PNI especifico |
+| `imunizacao_calendario_vacinacao` | Calendario Nacional de Vacinacao completo |
+| `imunizacao_listar_vacinas_sus` | Vacinas disponiveis no SUS |
+| `imunizacao_consultar_vacina` | Detalhes de uma vacina especifica |
+| `imunizacao_verificar_esquema_vacinal` | Vacinas por faixa etaria |
+| `imunizacao_metas_cobertura` | Metas de cobertura vacinal |
+
+**Chave:** Nenhuma
+
+---
+
+### `denasus` — DENASUS (5 tools)
+
+Departamento Nacional de Auditoria do SUS — atividades de auditoria, relatorios anuais e planos de auditoria interna.
+
+| Tool | Descricao |
+|------|-----------|
+| `denasus_listar_relatorios_anuais` | Relatorios anuais de atividades |
+| `denasus_listar_planos` | Planos anuais de auditoria interna |
+| `denasus_informacoes_sna` | Sistema Nacional de Auditoria do SUS (SNA) |
+| `denasus_consultar_demandas` | Demandas de auditoria |
+| `denasus_estatisticas_denasus` | Estatisticas consolidadas do DENASUS |
 
 **Chave:** Nenhuma
 
@@ -274,7 +474,7 @@ Estabelecimentos de saude, profissionais, leitos.
 
 ## Compras Publicas
 
-### `compras/pncp` — PNCP (6 tools)
+### `compras/pncp` — PNCP (14 tools)
 
 Portal Nacional de Contratacoes Publicas (Lei 14.133/2021).
 
@@ -284,8 +484,16 @@ Portal Nacional de Contratacoes Publicas (Lei 14.133/2021).
 | `compras_pncp_buscar_contratos` | Contratos por texto, CNPJ do fornecedor |
 | `compras_pncp_buscar_atas` | Atas de registro de preco |
 | `compras_pncp_consultar_fornecedor` | Dados do fornecedor por CNPJ |
-| `compras_pncp_buscar_itens` | Itens de contratacao |
 | `compras_pncp_consultar_orgao` | Orgaos contratantes |
+| `compras_pncp_buscar_contratacoes_abertas` | Licitacoes com prazo de proposta aberto |
+| `compras_pncp_buscar_contratacoes_atualizadas` | Contratacoes atualizadas por periodo |
+| `compras_pncp_buscar_contratos_atualizados` | Contratos atualizados por periodo |
+| `compras_pncp_buscar_atas_atualizadas` | Atas atualizadas por periodo |
+| `compras_pncp_consultar_contratacao_detalhe` | Detalhes de uma contratacao especifica |
+| `compras_pncp_buscar_pca` | Plano de contratacoes anual |
+| `compras_pncp_buscar_pca_atualizacao` | PCAs atualizados por periodo |
+| `compras_pncp_buscar_pca_usuario` | Itens de PCA por usuario responsavel |
+| `compras_pncp_buscar_instrumentos_cobranca` | Instrumentos de cobranca (notas fiscais) |
 
 **Chave:** Nenhuma
 
@@ -305,6 +513,76 @@ Dados legados de compras publicas (ate ~2020).
 | `compras_dadosabertos_buscar_material_catmat` | Catalogo CATMAT (materiais) |
 | `compras_dadosabertos_buscar_servico_catser` | Catalogo CATSER (servicos) |
 | `compras_dadosabertos_buscar_uasg` | Codigos UASG de orgaos |
+
+**Chave:** Nenhuma
+
+---
+
+### `compras/contratosgovbr` — Contratos.gov.br (7 tools)
+
+Contratos federais pos-2021 via API Contratos.gov.br — empenhos, faturas, aditivos, itens e terceirizados.
+
+| Tool | Descricao |
+|------|-----------|
+| `compras_contratosgovbr_listar_contratos_unidade` | Contratos ativos de uma Unidade Gestora |
+| `compras_contratosgovbr_consultar_contrato_id` | Contrato especifico por ID |
+| `compras_contratosgovbr_consultar_empenhos_contrato` | Empenhos (compromissos orcamentarios) |
+| `compras_contratosgovbr_consultar_faturas_contrato` | Faturas (notas fiscais) |
+| `compras_contratosgovbr_consultar_historico_contrato` | Termos aditivos e apostilamentos |
+| `compras_contratosgovbr_consultar_itens_contrato` | Itens (materiais e servicos) |
+| `compras_contratosgovbr_consultar_terceirizados_contrato` | Trabalhadores terceirizados |
+
+**Chave:** Nenhuma
+
+---
+
+## Seguranca Publica
+
+### `atlas_violencia` — Atlas da Violencia / IPEA (7 tools)
+
+Series historicas de homicidios, violencia por genero/raca, suicidios, armas de fogo, mortes no transito e intervencao policial.
+
+| Tool | Descricao |
+|------|-----------|
+| `atlas_violencia_listar_temas_violencia` | Temas disponiveis no Atlas da Violencia |
+| `atlas_violencia_consultar_valores_violencia` | Valores de uma serie temporal |
+| `atlas_violencia_consultar_serie_violencia` | Metadados de uma serie especifica |
+| `atlas_violencia_listar_fontes_violencia` | Fontes de dados do Atlas |
+| `atlas_violencia_listar_metadados_violencia` | Unidades de medida e periodicidades |
+| `atlas_violencia_buscar_localidades_violencia` | Localidades disponiveis para consulta |
+| `atlas_violencia_comparar_localidades_violencia` | Comparacao de indicadores entre localidades |
+
+**Chave:** Nenhuma
+
+---
+
+### `sinesp` — SINESP / MJSP (6 tools)
+
+Datasets de seguranca publica (homicidios, estupros, roubos, furtos, trafico, sistema penitenciario) via CKAN do Ministerio da Justica.
+
+| Tool | Descricao |
+|------|-----------|
+| `sinesp_listar_datasets_mjsp` | Todos os datasets do portal MJSP |
+| `sinesp_listar_organizacoes_mjsp` | Organizacoes do portal MJSP |
+| `sinesp_buscar_datasets_mjsp` | Busca datasets por palavra-chave |
+| `sinesp_detalhar_dataset_mjsp` | Detalhes de um dataset |
+| `sinesp_consultar_recurso_mjsp` | Dados de um recurso especifico |
+| `sinesp_listar_grupos_mjsp` | Grupos tematicos do portal |
+
+**Chave:** Nenhuma
+
+---
+
+### `forum_seguranca` — Forum Brasileiro de Seguranca Publica (4 tools)
+
+Publicacoes sobre seguranca publica, violencia, sistema prisional, Atlas da Violencia e Anuario via DSpace API.
+
+| Tool | Descricao |
+|------|-----------|
+| `forum_seguranca_buscar_publicacoes_seguranca` | Publicacoes no repositorio FBSP |
+| `forum_seguranca_listar_temas_seguranca` | Comunidades tematicas |
+| `forum_seguranca_detalhar_publicacao_seguranca` | Detalhes de uma publicacao por UUID |
+| `forum_seguranca_listar_colecoes_seguranca` | Colecoes de um tema |
 
 **Chave:** Nenhuma
 
@@ -354,32 +632,18 @@ Catalogo de datasets de dados.gov.br.
 
 ---
 
-### `diario_oficial` — Querido Diario (4 tools)
+### `diario_oficial` — Querido Diario + DOU (6 tools)
 
-Diarios oficiais de 5.000+ municipios brasileiros.
+Diarios oficiais de 5.000+ municipios (Querido Diario) e Diario Oficial da Uniao (DOU federal).
 
 | Tool | Descricao |
 |------|-----------|
-| `diario_oficial_buscar_diarios` | Busca full-text em diarios oficiais |
-| `diario_oficial_buscar_trechos` | Trechos de um municipio especifico |
+| `diario_oficial_buscar_diarios` | Busca full-text em diarios oficiais municipais |
+| `diario_oficial_buscar_diarios_regiao` | Busca em diarios de uma regiao |
 | `diario_oficial_buscar_cidades` | Busca municipios por nome (codigo IBGE) |
 | `diario_oficial_listar_territorios` | Territorios com diarios disponiveis |
-
-**Chave:** Nenhuma
-
----
-
-### `transferegov` — TransfereGov (5 tools)
-
-Emendas parlamentares PIX (transferencias especiais).
-
-| Tool | Descricao |
-|------|-----------|
-| `transferegov_buscar_emendas_pix` | Emendas PIX por ano/estado |
-| `transferegov_buscar_emenda_por_autor` | Emendas por nome do parlamentar |
-| `transferegov_detalhe_emenda` | Detalhes por ID do plano de acao |
-| `transferegov_emendas_por_municipio` | Emendas para um municipio |
-| `transferegov_resumo_emendas_ano` | Resumo anual de emendas PIX |
+| `diario_oficial_listar_diarios_recentes` | Publicacoes recentes de um municipio |
+| `diario_oficial_buscar_diario_unificado` | Busca unificada (municipios + DOU federal) |
 
 **Chave:** Nenhuma
 

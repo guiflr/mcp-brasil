@@ -254,20 +254,18 @@ META_ACCESS_TOKEN=seu-token
 
 ## Casos de Uso
 
-Exemplos detalhados de como usar o mcp-brasil em diferentes contextos profissionais:
+Exemplos de contextos profissionais onde o mcp-brasil pode ser aplicado:
 
 | Caso de Uso | Descrição | APIs Combinadas |
 |-------------|-----------|-----------------|
-| [Panorama Econômico](docs/examples/panorama-economico.md) | Dashboard econômico com Selic, IPCA, câmbio, PIB | Bacen, IBGE, Transparência |
-| [Fiscalização Municipal](docs/examples/fiscalizacao-municipal.md) | Onde vai o dinheiro da sua cidade — 9 TCEs cruzados | TCEs, PNCP, TransfereGov, IBGE |
-| [Análise Legislativa](docs/examples/analise-legislativa.md) | Ciclo completo de um PL: Câmara → Senado → Diário Oficial → STF | Câmara, Senado, Diário Oficial, DataJud |
-| [Cientista Político](docs/examples/cientista-politico.md) | Fidelidade partidária, coalizões, emendas como poder | Câmara, Senado, TSE, Transparência |
-| [Economista](docs/examples/economista.md) | Séries temporais, política fiscal, câmbio, crédito | Bacen (40K+ séries), IBGE |
-| [Jornalista Investigativo](docs/examples/jornalista-investigativo.md) | Rastrear emendas, licitações dirigidas, fornecedores suspeitos | Transparência, TCEs, TCU, PNCP, TSE |
-| [Jornalista — Matérias](docs/examples/jornalista-materias.md) | Produção de matérias data-driven com dados verificáveis | Bacen, IBGE, Câmara, INPE, TSE |
-| [Relatório Parlamentar](docs/examples/parlamentar-report.md) | Votação + emendas + despesas + financiamento de um parlamentar | Câmara, Senado, TSE, TransfereGov |
-| [Políticas Públicas](docs/examples/politicas-publicas.md) | Avaliar impacto: recursos investidos vs. resultados | TCEs, IBGE, CNES, Transparência, INPE |
-| [Redator Oficial](docs/examples/redator-oficial.md) | Gerar ofícios, pareceres e notas técnicas com dados reais | Redator + Bacen, Transparência, TCU |
+| Panorama Econômico | Dashboard econômico com Selic, IPCA, câmbio, PIB | Bacen, IBGE, BNDES, Transparência |
+| Fiscalização Municipal | Onde vai o dinheiro da sua cidade — 10 TCEs cruzados | TCEs, PNCP, Contratos.gov.br, TransfereGov, IBGE |
+| Análise Legislativa | Ciclo completo de um PL: Câmara → Senado → DOU → STF | Câmara, Senado, Diário Oficial, DataJud |
+| Jornalista Investigativo | Rastrear emendas, licitações dirigidas, fornecedores suspeitos | Transparência, TCEs, TCU, PNCP, TSE |
+| Saúde Pública | Rede hospitalar, medicamentos, vacinação, preços | CNES, ANVISA, Farmácia Popular, Imunização, BPS |
+| Segurança Pública | Violência, criminalidade, publicações acadêmicas | Atlas Violência, SINESP, Fórum Segurança |
+| Relatório Parlamentar | Votação + emendas + despesas + financiamento | Câmara, Senado, TSE, TransfereGov |
+| Redator Oficial | Gerar ofícios, pareceres e notas técnicas com dados reais | Redator + Bacen, Transparência, TCU |
 
 ## Desenvolvimento
 
